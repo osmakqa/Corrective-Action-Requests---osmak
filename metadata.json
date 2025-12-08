@@ -1,0 +1,5 @@
+{
+  "name": "Corrective Action Request System part 2",
+  "description": "A digital ISO 9001:2015 Corrective Action Request management system handling the full lifecycle from audit finding to validation, including automatic non-submission tracking.",
+  "requestFramePermissions": []
+}
