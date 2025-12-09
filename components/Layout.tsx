@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { PlusCircle, AlertTriangle, LogOut, LayoutDashboard, Archive, Eye, ArrowLeftCircle, PieChart, Briefcase, FileText, List, CheckSquare, ChevronDown, ChevronRight, Activity, Menu, X } from 'lucide-react';
+import { PlusCircle, AlertTriangle, LogOut, LayoutDashboard, Archive, Eye, ArrowLeftCircle, PieChart, Briefcase, FileText, List, CheckSquare, ChevronDown, ChevronRight, Activity, Menu, X, Clock } from 'lucide-react';
 import { Role, DEPARTMENTS } from '../types';
 
 interface LayoutProps {
@@ -222,6 +222,13 @@ export const Layout: React.FC<LayoutProps> = ({ children, userRole, userDepartme
                  {/* Section Actions */}
                  {userRole === Role.SECTION && (
                    <>
+                     <NavItem 
+                       to="/section/pending-plans" 
+                       icon={<Clock size={20}/>} 
+                       label="Pending Action Plans" 
+                       active={location.pathname === '/section/pending-plans'}
+                       onClick={closeMobileMenu}
+                     />
                      <NavItem 
                        to="/section/all-cars" 
                        icon={<List size={20}/>} 

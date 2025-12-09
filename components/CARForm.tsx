@@ -1,11 +1,12 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CAR, Role, CARStatus, RemedialAction, CorrectiveAction, DEPARTMENTS, RCAData, ISO_CLAUSES, AuditTrailEntry, AuditAction, RootCause } from '../types';
 import { fetchCARById, updateCAR, createCAR, updateRegistryOnSubmission, logAuditEvent, fetchAuditTrailForCAR } from '../services/store';
 import { generateCARPdf } from '../services/pdfGenerator';
 import { generateRemedialSuggestions, generateCorrectiveSuggestions } from '../services/aiService';
-import { Save, CheckCircle, XCircle, ArrowLeft, Plus, Trash2, GitBranch, AlertCircle, ShieldCheck, BookOpen, X, Search, ChevronRight, ChevronDown, Eye, RefreshCw, Loader2, MessageSquare, Archive, PlusCircle, HelpCircle, Download, FileText, Activity, Clock, User, PlayCircle, RotateCcw, PenLine, Sparkles, Wand2 } from 'lucide-react';
+import { Save, CheckCircle, XCircle, ArrowLeft, Plus, Trash2, GitBranch, AlertCircle, ShieldCheck, BookOpen, X, Search, ChevronRight, ChevronDown, Eye, RefreshCw, Loader2, MessageSquare, Archive, PlusCircle, HelpCircle, Download, FileText, Activity, Clock, User, PlayCircle, RotateCcw, PenLine, Sparkles, Wand2, Users, Building } from 'lucide-react';
 import { RCAModule } from './RCAModule';
 
 interface CARFormProps {
@@ -44,6 +45,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
 
   const [newRemedial, setNewRemedial] = useState('');
   const [newCorrective, setNewCorrective] = useState<Partial<CorrectiveAction>>({});
+  const [assignType, setAssignType] = useState<'person' | 'section'>('person');
   
   // AI Suggestions State
   const [remedialSuggestions, setRemedialSuggestions] = useState<string[]>([]);
@@ -82,7 +84,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
         
         setCar({
           id: '',
-          refNo: '', department: '', isoClause: '', carNo: '', source: 'IQA', dateOfAudit: '',
+          refNo: '', department: '', isoClause: '', carNo: '', source: 'Internal Audit', dateOfAudit: '',
           description: { statement: '', evidence: '', reference: '' },
           issuedBy: (userRole === Role.QA && userName) ? userName : '', 
           dateIssued: dateIssued, 
@@ -161,7 +163,12 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
 
     if (!car.refNo?.trim()) newErrors.refNo = 'Reference Number is required.';
     if (!car.department?.trim()) newErrors.department = 'Department is required.';
-    if (!car.isoClause?.trim()) newErrors.isoClause = 'ISO Clause is required.';
+    
+    // ISO Clause validation only if source is Internal Audit or KPI
+    if ((car.source === 'Internal Audit' || car.source === 'KPI') && !car.isoClause?.trim()) {
+        newErrors.isoClause = 'ISO Clause is required.';
+    }
+
     if (!car.carNo?.trim()) newErrors.carNo = 'CAR Number is required.';
     if (!car.source?.trim()) newErrors.source = 'Source is required.';
     if (!car.dateOfAudit) newErrors.dateOfAudit = 'Date of Audit is required.';
@@ -269,7 +276,8 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
       ...prev,
       correctiveActions: [...prev.correctiveActions, { id: crypto.randomUUID(), ...newCorrective } as CorrectiveAction]
     }) : null);
-    setNewCorrective({});
+    setNewCorrective({ personResponsible: '', expectedDate: '', action: '' });
+    // Keep the assignType choice or reset it? Let's keep it.
     // Optionally remove from list
     setCorrectiveSuggestions(prev => prev.filter(s => s !== newCorrective.action));
   };
@@ -491,6 +499,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
   const canUndoValidate = !isReadOnlyView && userRole === Role.DQMR && car.status === CARStatus.CLOSED;
 
   const hasRCAData = car.rcaData && (car.rcaData.chains.length > 0 || car.rcaData.paretoItems.length > 0);
+  const isIsoApplicable = car.source === 'Internal Audit' || car.source === 'KPI';
 
   // Modern UI Input Classes
   const getInputClass = (field: string, editable: boolean) => {
@@ -752,8 +761,14 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                {isNew && errors.department && <p className="text-red-500 text-xs mt-1 font-medium">{errors.department}</p>}
             </div>
             <div className="col-span-1">
-               <FieldLabel label="ISO Clause" editable={canEditHeader} required={isNew} />
-               <input disabled={!canEditHeader} value={car.isoClause} onChange={(e) => handleUpdate('isoClause', e.target.value)} className={getInputClass('isoClause', canEditHeader)} />
+               <FieldLabel label="ISO Clause" editable={canEditHeader && isIsoApplicable} required={isNew && isIsoApplicable} />
+               <input 
+                  disabled={!canEditHeader || !isIsoApplicable} 
+                  value={car.isoClause} 
+                  onChange={(e) => handleUpdate('isoClause', e.target.value)} 
+                  className={getInputClass('isoClause', canEditHeader && isIsoApplicable)} 
+                  placeholder={!isIsoApplicable ? "N/A" : ""}
+               />
                {isNew && errors.isoClause && <p className="text-red-500 text-xs mt-1 font-medium">{errors.isoClause}</p>}
             </div>
             <div className="col-span-1">
@@ -764,13 +779,31 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
             
             <div className="col-span-2">
                <FieldLabel label="Source" editable={canEditHeader} required={isNew} />
-               <select disabled={!canEditHeader} value={car.source} onChange={(e) => handleUpdate('source', e.target.value)} className={getInputClass('source', canEditHeader)}>
-                 <option>IQA</option>
-                 <option>MR</option>
-                 <option>SGS</option>
-                 <option>Customer Feedback</option>
-                 <option>Others</option>
-               </select>
+               <div className="flex gap-2">
+                  <select 
+                     disabled={!canEditHeader} 
+                     value={car.source} 
+                     onChange={(e) => handleUpdate('source', e.target.value)} 
+                     className={getInputClass('source', canEditHeader)}
+                  >
+                     <option value="Internal Audit">Internal Audit</option>
+                     <option value="KPI">KPI</option>
+                     <option value="DOH">DOH</option>
+                     <option value="IPC">IPC</option>
+                     <option value="PhilHealth">PhilHealth</option>
+                     <option value="Incident Management System">Incident Management System</option>
+                     <option value="Others">Others</option>
+                  </select>
+                  {car.source === 'Others' && (
+                     <input 
+                        disabled={!canEditHeader} 
+                        value={car.otherSourceSpecify || ''} 
+                        onChange={(e) => handleUpdate('otherSourceSpecify', e.target.value)} 
+                        className={getInputClass('otherSourceSpecify', canEditHeader)}
+                        placeholder="Specify source..."
+                     />
+                  )}
+               </div>
                {isNew && errors.source && <p className="text-red-500 text-xs mt-1 font-medium">{errors.source}</p>}
             </div>
             <div className="col-span-2">
@@ -810,7 +843,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                    <button 
                      onClick={() => setShowIsoGuide(true)} 
                      className="text-xs font-bold text-green-700 hover:text-green-800 hover:underline flex items-center gap-1 disabled:opacity-50"
-                     disabled={!canEditHeader}
+                     disabled={!canEditHeader || !isIsoApplicable}
                    >
                      <BookOpen size={14} /> Open ISO Guide
                    </button>
@@ -1010,7 +1043,41 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                                  <input className="w-full p-2 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-500 outline-none" placeholder="Enter corrective action..." value={newCorrective.action || ''} onChange={e => setNewCorrective({...newCorrective, action: e.target.value})} />
                               </div>
                               <div className="md:col-span-3">
-                                 <input className="w-full p-2 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-500 outline-none" placeholder="Person Responsible" value={newCorrective.personResponsible || ''} onChange={e => setNewCorrective({...newCorrective, personResponsible: e.target.value})} />
+                                 {/* Assign Type Toggle */}
+                                 <div className="flex gap-1 mb-1">
+                                    <button 
+                                       onClick={() => { setAssignType('person'); setNewCorrective({...newCorrective, personResponsible: ''}); }}
+                                       className={`flex-1 text-[10px] py-0.5 rounded flex items-center justify-center gap-1 ${assignType === 'person' ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-gray-200 text-gray-500'}`}
+                                    >
+                                       <Users size={10} /> Person
+                                    </button>
+                                    <button 
+                                       onClick={() => { setAssignType('section'); setNewCorrective({...newCorrective, personResponsible: ''}); }}
+                                       className={`flex-1 text-[10px] py-0.5 rounded flex items-center justify-center gap-1 ${assignType === 'section' ? 'bg-orange-100 text-orange-700 font-bold' : 'bg-gray-200 text-gray-500'}`}
+                                    >
+                                       <Building size={10} /> Section
+                                    </button>
+                                 </div>
+                                 
+                                 {assignType === 'person' ? (
+                                    <input 
+                                       className="w-full p-2 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-500 outline-none" 
+                                       placeholder="Person Responsible" 
+                                       value={newCorrective.personResponsible || ''} 
+                                       onChange={e => setNewCorrective({...newCorrective, personResponsible: e.target.value})} 
+                                    />
+                                 ) : (
+                                    <select
+                                       className="w-full p-2 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-500 outline-none" 
+                                       value={newCorrective.personResponsible || ''} 
+                                       onChange={e => setNewCorrective({...newCorrective, personResponsible: e.target.value})}
+                                    >
+                                       <option value="">Select Section...</option>
+                                       {DEPARTMENTS.map(d => (
+                                          <option key={d} value={d}>{d}</option>
+                                       ))}
+                                    </select>
+                                 )}
                               </div>
                               <div className="md:col-span-2">
                                  <input type="date" className="w-full p-2 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-1 focus:ring-green-500 outline-none" value={newCorrective.expectedDate || ''} onChange={e => setNewCorrective({...newCorrective, expectedDate: e.target.value})} />

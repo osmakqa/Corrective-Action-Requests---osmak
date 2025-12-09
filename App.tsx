@@ -48,6 +48,13 @@ const App: React.FC = () => {
               ? <Dashboard userRole={userRole} currentDepartment={userDepartment} viewMode="all" userName={userName} />
               : <Navigate to="/dashboard" />
           } />
+
+          {/* Section: Pending Action Plans */}
+          <Route path="/section/pending-plans" element={
+            userRole === Role.SECTION
+              ? <Dashboard userRole={userRole} currentDepartment={userDepartment} viewMode="pending-plans" userName={userName} />
+              : <Navigate to="/dashboard" />
+          } />
           
           {/* Recent Activity - QA and Section */}
           <Route path="/recent-activity" element={

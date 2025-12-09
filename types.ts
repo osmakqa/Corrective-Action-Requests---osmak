@@ -31,6 +31,42 @@ export const DEPARTMENTS = [
   "Surgical Care Complex"
 ];
 
+export const NURSING_UNITS = [
+  "OBGyne Ward",
+  "NICU",
+  "PICU",
+  "Pedia Ward",
+  "Pedia ICU",
+  "Cohort",
+  "Surgery Ward",
+  "6th Floor Ward",
+  "7th Floor",
+  "Dialysis Unit",
+  "Chemotherapy Unit",
+  "Medicine Ward",
+  "ICU",
+  "Ambulatory Care Medicine Complex",
+  "Emergency Room Complex",
+  "Surgical Care Complex",
+  "LRDR",
+  "CSR"
+];
+
+export const CLINICAL_DEPARTMENTS = [
+  "Department of Anaesthesiology",
+  "Department of Emergency, Pre-hospital and Disaster Medicine",
+  "Department of Family and Community Medicine",
+  "Department of Internal Medicine",
+  "Department of Obstetrics and Gynecology",
+  "Department of Otorhinolaryngology – Head and Neck Surgery",
+  "Department of Ophthalmology",
+  "Department of Pathology and Laboratories",
+  "Department of Pediatrics",
+  "Department of Radiology",
+  "Department of Physical and Rehabilitation Medicine",
+  "Department of Surgery"
+];
+
 export const QA_PERSONNEL = [
   "Main QA Account",
   "Ana Concepcion Biligan",
@@ -476,7 +512,7 @@ export interface CAR {
   department: string;
   isoClause: string;
   carNo: string;
-  source: 'IQA' | 'MR' | 'SGS' | 'Customer Feedback' | 'Others';
+  source: 'Internal Audit' | 'KPI' | 'DOH' | 'IPC' | 'PhilHealth' | 'Incident Management System' | 'Others';
   otherSourceSpecify?: string;
   dateOfAudit: string;
   

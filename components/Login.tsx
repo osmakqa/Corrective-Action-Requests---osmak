@@ -1,6 +1,8 @@
 
+
+
 import React, { useState } from 'react';
-import { Role, DEPARTMENTS, QA_PERSONNEL } from '../types';
+import { Role, DEPARTMENTS, NURSING_UNITS, CLINICAL_DEPARTMENTS, QA_PERSONNEL } from '../types';
 import { ChevronDown, Eye, EyeOff, BookOpen, CheckCircle, X, FileText, Activity, ShieldCheck, Archive, AlertTriangle, PlayCircle, HelpCircle, Monitor, BarChart2, AlertOctagon } from 'lucide-react';
 
 interface LoginProps {
@@ -10,6 +12,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [activeTab, setActiveTab] = useState<Role>(Role.SECTION);
   const [selectedDept, setSelectedDept] = useState('');
+  const [sectionCategory, setSectionCategory] = useState<'General' | 'Nursing' | 'Clinical' | 'IMT'>('General');
   const [selectedQA, setSelectedQA] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -181,7 +184,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
               <section>
                   <div className="flex items-center gap-3 mb-4">
                       <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm shrink-0">3</div>
-                      <h3 className="text-xl font-bold text-green-800">Workflow Guide</h3>
+                      <h3 className="text-xl font-bold text-green-800">Process Owner (Category: Department Head, Nursing Unit Head, Clinical Dept. Chair)</h3>
                   </div>
                   <div className="pl-11 space-y-6">
                       <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
@@ -488,18 +491,57 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                
                {activeTab === Role.SECTION && (
                  <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Select Department</label>
-                    <div className="relative">
-                       <select 
-                         value={selectedDept} 
-                         onChange={(e) => setSelectedDept(e.target.value)}
-                         className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 appearance-none bg-white focus:ring-2 focus:ring-[#009a3e] focus:border-transparent outline-none transition-all cursor-pointer hover:border-gray-400 text-sm"
-                        >
-                          <option value="">Select Department...</option>
-                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        <ChevronDown className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={18} />
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">Select Category</label>
+                    <div className="flex bg-gray-50 rounded-lg p-1 border border-gray-200 mb-3">
+                      <button 
+                        onClick={() => { setSectionCategory('General'); setSelectedDept(''); }}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${sectionCategory === 'General' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        Section
+                      </button>
+                      <button 
+                        onClick={() => { setSectionCategory('Nursing'); setSelectedDept(''); }}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${sectionCategory === 'Nursing' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        Nursing Unit
+                      </button>
+                      <button 
+                        onClick={() => { setSectionCategory('Clinical'); setSelectedDept(''); }}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${sectionCategory === 'Clinical' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        Clinical Dept
+                      </button>
+                      <button 
+                        onClick={() => { setSectionCategory('IMT'); setSelectedDept('IMT'); }}
+                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${sectionCategory === 'IMT' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
+                      >
+                        IMT
+                      </button>
                     </div>
+
+                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
+                      {sectionCategory === 'General' ? 'Section' : (sectionCategory === 'Nursing' ? 'Nursing Unit' : (sectionCategory === 'Clinical' ? 'Clinical Department' : 'Department'))}
+                    </label>
+                    
+                    {sectionCategory !== 'IMT' ? (
+                        <div className="relative">
+                           <select 
+                             value={selectedDept} 
+                             onChange={(e) => setSelectedDept(e.target.value)}
+                             className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 appearance-none bg-white focus:ring-2 focus:ring-[#009a3e] focus:border-transparent outline-none transition-all cursor-pointer hover:border-gray-400 text-sm"
+                            >
+                              <option value="">Select...</option>
+                              {sectionCategory === 'General' && DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                              {sectionCategory === 'Nursing' && NURSING_UNITS.map(d => <option key={d} value={d}>{d}</option>)}
+                              {sectionCategory === 'Clinical' && CLINICAL_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={18} />
+                        </div>
+                    ) : (
+                        <div className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 bg-gray-100 text-sm font-medium select-none">
+                            IMT
+                        </div>
+                    )}
                  </div>
                )}
 

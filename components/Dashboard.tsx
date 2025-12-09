@@ -1,4 +1,5 @@
 
+
 import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { CAR, Role, CARStatus, AuditTrailEntry, AuditAction, DEPARTMENTS } from '../types';
@@ -9,7 +10,7 @@ import { ChevronRight, Download, Activity, CheckCircle, AlertOctagon, Clock, Eye
 interface DashboardProps {
   userRole: Role;
   currentDepartment?: string;
-  viewMode: 'active' | 'closed' | 'monitor' | 'all';
+  viewMode: 'active' | 'closed' | 'monitor' | 'all' | 'pending-plans';
   userName?: string;
 }
 
@@ -40,6 +41,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterYear, setFilterYear] = useState<string>('All');
   const [availableYears, setAvailableYears] = useState<string[]>([]);
+
+  // State for Source Filter (IQA View)
+  const [filterSource, setFilterSource] = useState<string>('All');
 
   // Determine which department filter to use
   const targetDepartment = viewMode === 'monitor' ? decodeURIComponent(paramDept || '') : currentDepartment;
@@ -83,8 +87,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
     let allCars = await fetchCARs();
     
-    // 1. Filter by Department (if Section or Monitor Mode)
-    if (targetDepartment) {
+    // 0. IMT Special Logic: Only see CARs from "Incident Management System" source
+    if (userRole === Role.SECTION && currentDepartment === 'IMT') {
+       allCars = allCars.filter(c => c.source === 'Incident Management System');
+    }
+
+    // 1. Filter by Department (if Section or Monitor Mode) - Skip if IMT as we handled it above
+    if (targetDepartment && currentDepartment !== 'IMT') {
       allCars = allCars.filter(c => c.department === targetDepartment);
     }
     
@@ -111,6 +120,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
         c.status === CARStatus.RETURNED || 
         c.status === CARStatus.ACCEPTED // ACCEPTED displays as "FOR IMPLEMENTATION"
       );
+    } else if (userRole === Role.SECTION && viewMode === 'pending-plans') {
+      // Pending Action Plans: Open or Returned
+      allCars = allCars.filter(c => 
+        c.status === CARStatus.OPEN || 
+        c.status === CARStatus.RETURNED
+      );
     } else if (userRole === Role.SECTION && viewMode === 'all') {
       // Section All View: Apply Status and Year Filters
       // First, get all years for the dropdown
@@ -129,6 +144,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
       allCars = allCars.filter(c => c.status !== CARStatus.CLOSED);
     }
 
+    // 4. Apply Source Filter (For IQA)
+    if (userRole === Role.QA && filterSource !== 'All') {
+        allCars = allCars.filter(c => c.source === filterSource);
+    }
 
     // Sort: Overdue first, then by Due Date
     allCars.sort((a, b) => {
@@ -143,7 +162,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
   useEffect(() => {
     loadData();
-  }, [userRole, targetDepartment, viewMode, userName, isSpecificQA, selectedFilterDept, filterStatus, filterYear]);
+  }, [userRole, targetDepartment, viewMode, userName, isSpecificQA, selectedFilterDept, filterStatus, filterYear, filterSource]);
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -278,6 +297,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   else if (isSpecificQA) pageTitle = `My Issued CARs - ${userName}`;
   else if (userRole === Role.QA) pageTitle = 'All Active CARs (Main IQA View)';
   else if (viewMode === 'all' && userRole === Role.SECTION) pageTitle = `All CARs: ${currentDepartment}`;
+  else if (viewMode === 'pending-plans' && userRole === Role.SECTION) pageTitle = `Pending Action Plans: ${currentDepartment}`;
 
   const themeColor = viewMode === 'closed' || viewMode === 'all' ? 'gray' : 'green';
 
@@ -396,32 +416,57 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
         )}
       </div>
 
-      {/* QA Closed View Filter Section */}
-      {isQAClosedView && (
-        <div className="bg-white p-4 rounded-xl shadow border border-gray-200 mb-6 flex items-center gap-4">
-           <div className="bg-gray-100 p-2 rounded-full">
-              <Filter size={20} className="text-gray-600"/>
-           </div>
-           <div className="flex-1">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Select Department to View Archive</label>
-              <select 
-                value={selectedFilterDept} 
-                onChange={(e) => setSelectedFilterDept(e.target.value)}
-                className="w-full max-w-md border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
-              >
-                 <option value="">-- Select Department --</option>
-                 {DEPARTMENTS.map(d => (
-                   <option key={d} value={d}>{d}</option>
-                 ))}
-              </select>
-           </div>
-           {!selectedFilterDept && (
-              <div className="text-sm text-orange-600 italic flex items-center gap-1">
-                 <AlertCircle size={14} /> Please select a department to view records.
-              </div>
-           )}
-        </div>
+      {/* QA Filter Section */}
+      {userRole === Role.QA && (
+         <div className="bg-white p-4 rounded-xl shadow border border-gray-200 mb-6 flex flex-wrap items-center gap-6">
+            <div className="bg-gray-100 p-2 rounded-full">
+               <Filter size={20} className="text-gray-600"/>
+            </div>
+
+            {/* Department Filter (Only for Closed View) */}
+            {isQAClosedView && (
+               <div className="flex-1 min-w-[200px]">
+                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filter by Department</label>
+                  <select 
+                    value={selectedFilterDept} 
+                    onChange={(e) => setSelectedFilterDept(e.target.value)}
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
+                  >
+                     <option value="">-- Select Department --</option>
+                     {DEPARTMENTS.map(d => (
+                       <option key={d} value={d}>{d}</option>
+                     ))}
+                  </select>
+               </div>
+            )}
+
+            {/* Source Filter (ForAll QA Views) */}
+            <div className="flex-1 min-w-[200px]">
+               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filter by Source</label>
+               <select 
+                 value={filterSource} 
+                 onChange={(e) => setFilterSource(e.target.value)}
+                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
+               >
+                  <option value="All">All Sources</option>
+                  <option value="Internal Audit">Internal Audit</option>
+                  <option value="KPI">KPI</option>
+                  <option value="DOH">DOH</option>
+                  <option value="IPC">IPC</option>
+                  <option value="PhilHealth">PhilHealth</option>
+                  <option value="Incident Management System">Incident Management System</option>
+                  <option value="Others">Others</option>
+               </select>
+            </div>
+            
+            {isQAClosedView && !selectedFilterDept && (
+               <div className="text-sm text-orange-600 italic flex items-center gap-1 w-full mt-2">
+                  <AlertCircle size={14} /> Please select a department to view records.
+               </div>
+            )}
+         </div>
       )}
+
 
       {/* Section "All CARs" Filter Section */}
       {isSectionAllView && (

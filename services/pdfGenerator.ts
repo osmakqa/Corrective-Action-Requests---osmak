@@ -1,3 +1,5 @@
+
+
 import { jsPDF } from 'jspdf';
 import { CAR } from '../types';
 import { LUNGSOD_NG_MAKATI_LOGO_BASE64, OSPITAL_NG_MAKATI_LOGO_BASE64 } from '../assets';
@@ -142,7 +144,7 @@ export const generateCARPdf = (car: CAR) => {
   
   // Source Options
   doc.rect(margin + 20, currentY, 110, hRow2);
-  const sources = ['IQA', 'MR', 'SGS', 'Customer feedback', 'Others'];
+  const sources = ['Internal Audit', 'KPI', 'DOH', 'IPC', 'PhilHealth', 'Incident Management System', 'Others'];
   let srcX = margin + 22;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
@@ -154,8 +156,10 @@ export const generateCARPdf = (car: CAR) => {
       doc.text('x', srcX + 0.5, currentY + 5);
     }
     // Label
-    doc.text(src, srcX + 5, currentY + 5);
-    srcX += (src.length * 1.5) + 12; // Dynamic spacing
+    // Shorten Incident Management System for display if needed or keep full
+    const displaySrc = src === 'Incident Management System' ? 'IMS' : src;
+    doc.text(displaySrc, srcX + 5, currentY + 5);
+    srcX += (displaySrc.length * 1.5) + 12; // Dynamic spacing
   });
 
   // Date of Audit
