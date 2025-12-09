@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { RCAData, RCAChain, ParetoItem } from '../types';
-import { Plus, Trash2, ArrowRight, TrendingUp, Fish, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, TrendingUp, Fish, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, ArrowDown, GitCommit, Wand2 } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
+import { generate4MFactors } from '../services/aiService';
 
 interface RCAModuleProps {
   initialData: RCAData;
@@ -18,26 +19,35 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   const [rootCauseHypothesis, setRootCauseHypothesis] = useState(initialData.rootCauseHypothesis || '');
   const [activeTab, setActiveTab] = useState<'analysis' | 'fishbone' | 'pareto'>('analysis');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
+  const [isAiFillingFactors, setIsAiFillingFactors] = useState(false);
 
   // Categories for Factor Analysis
   const CATEGORIES = ['PEOPLE', 'METHODS', 'EQUIPMENT', 'ENVIRONMENT'];
 
   // Initialize chains for categories if missing
   useEffect(() => {
-    const existingCategories = new Set(chains.map(c => c.category));
-    const missing = CATEGORIES.filter(cat => !existingCategories.has(cat));
-    
-    if (missing.length > 0) {
-      const newChains = missing.map(cat => ({
-        id: cat, // Use category name as ID for simplicity in 4M model
-        category: cat,
-        whys: [] // These are the factors
-      }));
-      setChains(prev => [...prev, ...newChains]);
+    // Ensure we have at least one chain start for each category to guide the user
+    // We check if there is ANY chain for that category. If not, add one.
+    const newChains = [...chains];
+    let hasChanges = false;
+
+    CATEGORIES.forEach(cat => {
+      if (!newChains.some(c => c.category === cat)) {
+        newChains.push({
+          id: `${cat}-${crypto.randomUUID()}`, 
+          category: cat,
+          whys: [''] // Start with one empty 'Why'
+        });
+        hasChanges = true;
+      }
+    });
+
+    if (hasChanges) {
+      setChains(newChains);
     }
   }, []);
 
-  // --- AI Auto-Generation Logic ---
+  // --- AI Auto-Generation Logic (Hypothesis) ---
   useEffect(() => {
     // Skip if read only
     if (isReadOnly) return;
@@ -55,12 +65,13 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
       setIsAiGenerating(true);
 
       try {
-        // Construct the prompt context
-        let factorsText = "";
+        // Construct the prompt context representing chains
+        let analysisText = "";
         chains.forEach(c => {
            const validFactors = c.whys.filter(w => w.trim());
            if (validFactors.length > 0) {
-             factorsText += `- ${c.category}: ${validFactors.join(', ')}\n`;
+             // Describe the chain: A -> caused -> B -> caused -> C
+             analysisText += `- Category ${c.category}: ${validFactors.join(' -> caused -> ')}\n`;
            }
         });
 
@@ -69,11 +80,12 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
           
           Problem Statement: "${problemStatement}"
           
-          Identified Factors (4M Analysis):
-          ${factorsText}
+          5 Whys Analysis Chains (4M Factors):
+          ${analysisText}
           
-          Based strictly on the factors provided above, generate a single, professional, and cohesive "Root Cause Hypothesis" sentence. 
-          Do not add preamble. Connect the factors logically to the problem.
+          Based on the causal chains provided above, synthesize a single, professional, and cohesive "Root Cause Hypothesis" sentence.
+          Identify the deepest underlying cause from the chains.
+          Do not add preamble.
         `;
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -87,68 +99,128 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
         }
       } catch (error) {
         console.error("AI Generation failed", error);
-        // Fallback or silent fail - we don't want to disrupt the UI too much
       } finally {
         setIsAiGenerating(false);
       }
 
-    }, 2000); // 2 second delay after typing stops
+    }, 2500); // Increased delay for 5 whys typing
 
     return () => clearTimeout(timer);
   }, [chains, problemStatement, isReadOnly]);
 
+  // --- AI Factor Generation ---
+  const handleAutoFillFactors = async () => {
+    setIsAiFillingFactors(true);
+    const factors = await generate4MFactors(problemStatement);
+    
+    setChains(prev => {
+      const newChains = [...prev];
+      
+      // Iterate through the categories and add generated factors
+      Object.entries(factors).forEach(([category, catChainsData]) => {
+        // catChainsData is now an array of string arrays (chains)
+        (catChainsData as string[][]).forEach((chainWhys: string[]) => {
+          // Check if there's an empty chain for this category we can use
+          const emptyChainIndex = newChains.findIndex(
+            c => c.category === category && c.whys.length === 1 && c.whys[0].trim() === ''
+          );
 
-  // Add factor to a category
-  const addFactor = (category: string) => {
+          if (emptyChainIndex !== -1) {
+            // Update existing empty chain
+            newChains[emptyChainIndex] = {
+              ...newChains[emptyChainIndex],
+              whys: chainWhys
+            };
+          } else {
+            // Add new chain
+            newChains.push({
+              id: `${category}-${crypto.randomUUID()}`,
+              category: category,
+              whys: chainWhys
+            });
+          }
+        });
+      });
+      return newChains;
+    });
+    
+    setIsAiFillingFactors(false);
+  };
+
+  // Add a new chain to a category
+  const addChain = (category: string) => {
+    setChains(prev => [...prev, {
+      id: `${category}-${crypto.randomUUID()}`,
+      category: category,
+      whys: ['']
+    }]);
+  };
+
+  // Add next 'Why' level to a specific chain
+  const addNextWhy = (chainId: string) => {
     setChains(prev => prev.map(c => {
-      if (c.category === category) {
+      if (c.id === chainId) {
         return { ...c, whys: [...c.whys, ''] };
       }
       return c;
     }));
   };
 
-  // Update factor value
-  const updateFactor = (category: string, index: number, value: string) => {
+  // Update 'Why' value
+  const updateWhy = (chainId: string, index: number, value: string) => {
     setChains(prev => prev.map(c => {
-      if (c.category === category) {
-        const newFactors = [...c.whys];
-        newFactors[index] = value;
-        return { ...c, whys: newFactors };
+      if (c.id === chainId) {
+        const newWhys = [...c.whys];
+        newWhys[index] = value;
+        return { ...c, whys: newWhys };
       }
       return c;
     }));
   };
 
-  // Remove factor
-  const removeFactor = (category: string, index: number) => {
+  // Remove a 'Why' level or the whole chain if it's the last one
+  const removeWhy = (chainId: string, index: number) => {
     setChains(prev => prev.map(c => {
-      if (c.category === category) {
-        return { ...c, whys: c.whys.filter((_, i) => i !== index) };
+      if (c.id === chainId) {
+        const newWhys = c.whys.filter((_, i) => i !== index);
+        // If empty, we might want to remove the chain entirely, but we handle that with a separate button usually.
+        // For now, if it becomes empty, keep one empty slot or remove? 
+        // Let's keep one empty slot if it was the only one, otherwise remove.
+        if (newWhys.length === 0) return { ...c, whys: [''] };
+        return { ...c, whys: newWhys };
       }
       return c;
     }));
+  };
+
+  // Remove entire chain
+  const removeChain = (chainId: string) => {
+    setChains(prev => prev.filter(c => c.id !== chainId));
   };
 
   // Sync Pareto Data
   useEffect(() => {
     if (activeTab === 'pareto') {
-      // Flatten all factors into pareto items
-      const currentFactors: {id: string, cause: string}[] = [];
+      // Flatten all ROOT CAUSES (last items of chains) into pareto items
+      // Requirement: "not every entry is a root cause". Usually Pareto analyzes the Root Causes.
+      
+      const potentialRootCauses: {id: string, cause: string}[] = [];
+      
       chains.forEach(chain => {
-        chain.whys.forEach((factor, idx) => {
-          if (factor.trim()) {
-            currentFactors.push({
-              id: `${chain.category}-${idx}`,
-              cause: factor
-            });
-          }
-        });
+        // Find the last non-empty why
+        const validWhys = chain.whys.filter(w => w.trim());
+        if (validWhys.length > 0) {
+           const root = validWhys[validWhys.length - 1];
+           potentialRootCauses.push({
+             id: chain.id, // Use chain ID to link back
+             cause: root
+           });
+        }
       });
 
-      // Map to Pareto Items (preserve frequency if exists)
-      const newItems: ParetoItem[] = currentFactors.map(f => {
-        const existing = paretoItems.find(p => p.cause === f.cause); // match by name since IDs might shift
+      // Map to Pareto Items
+      const newItems: ParetoItem[] = potentialRootCauses.map(f => {
+        const existing = paretoItems.find(p => p.cause === f.cause);
         return {
           id: f.id,
           cause: f.cause,
@@ -188,7 +260,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-6xl h-[90vh] rounded-xl flex flex-col shadow-2xl overflow-hidden">
+      <div className="bg-white w-full max-w-7xl h-[90vh] rounded-xl flex flex-col shadow-2xl overflow-hidden">
         
         {/* Header */}
         <div className="bg-green-800 text-white p-4 flex justify-between items-center shrink-0">
@@ -197,9 +269,19 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
               <Sparkles size={20} className="text-yellow-300"/> 
               AI-Assisted Root Cause Analysis
             </h2>
-            <p className="text-xs text-green-200 opacity-80 mt-1">4M Method • Fishbone • Pareto</p>
+            <p className="text-xs text-green-200 opacity-80 mt-1">4M Factors • 5 Whys Principle • Fishbone • Pareto</p>
           </div>
-          <div className="space-x-2">
+          <div className="space-x-2 flex items-center">
+            {!isReadOnly && activeTab === 'analysis' && (
+              <button 
+                onClick={handleAutoFillFactors}
+                disabled={isAiFillingFactors}
+                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50 mr-2"
+              >
+                {isAiFillingFactors ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                Auto-Fill 4M Factors
+              </button>
+            )}
             {!isReadOnly && (
                <button onClick={saveRCA} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition-colors">
                   <Save size={18}/> Save Analysis
@@ -214,7 +296,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
         {/* Tabs */}
         <div className="flex bg-gray-50 border-b border-gray-200 shrink-0">
           <button onClick={() => setActiveTab('analysis')} className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'analysis' ? 'bg-white text-green-800 border-t-4 border-green-600 shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>
-            <LayoutGrid size={18}/> Factor Analysis
+            <LayoutGrid size={18}/> 5 Whys Analysis
           </button>
           <button onClick={() => setActiveTab('fishbone')} className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'fishbone' ? 'bg-white text-green-800 border-t-4 border-green-600 shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>
             <Fish size={18}/> Fishbone Diagram
@@ -227,7 +309,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
           
-          {/* TAB 1: FACTOR ANALYSIS (4M) */}
+          {/* TAB 1: FACTOR ANALYSIS (4M + 5 Whys) */}
           {activeTab === 'analysis' && (
             <div className="flex flex-col h-full space-y-6">
                
@@ -242,39 +324,80 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                {/* Factors Grid */}
                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
                  {CATEGORIES.map(cat => {
-                   const chain = chains.find(c => c.category === cat) || { whys: [] };
+                   // Get all chains for this category
+                   const catChains = chains.filter(c => c.category === cat);
+                   
                    return (
-                     <div key={cat} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col hover:border-blue-300 transition-colors">
-                        <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2">
-                           <h3 className="font-bold text-gray-600 uppercase text-sm tracking-wide">{cat}</h3>
-                           <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-mono">{chain.whys.filter(w => w).length} Factors</span>
+                     <div key={cat} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col hover:border-blue-300 transition-colors h-[400px]">
+                        <div className="flex justify-between items-center mb-3 border-b border-gray-100 pb-2 shrink-0">
+                           <h3 className="font-bold text-gray-600 uppercase text-sm tracking-wide flex items-center gap-2">
+                             {cat}
+                           </h3>
+                           {!isReadOnly && (
+                             <button onClick={() => addChain(cat)} className="text-[10px] bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 font-bold flex items-center gap-1">
+                               <Plus size={12}/> New Chain
+                             </button>
+                           )}
                         </div>
                         
-                        <div className="space-y-2 flex-1 overflow-y-auto min-h-[120px]">
-                           {chain.whys.map((factor, idx) => (
-                              <div key={idx} className="flex items-center gap-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                                 <input 
-                                   disabled={isReadOnly}
-                                   value={factor}
-                                   onChange={(e) => updateFactor(cat, idx, e.target.value)}
-                                   className="flex-1 p-2 text-sm border border-gray-300 bg-white text-gray-900 rounded focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
-                                   placeholder={`Add ${cat.toLowerCase()} factor...`}
-                                   autoFocus={!factor} 
-                                 />
-                                 {!isReadOnly && (
-                                   <button onClick={() => removeFactor(cat, idx)} className="text-gray-300 hover:text-red-500 p-1 transition-colors">
-                                      <X size={16}/>
-                                   </button>
-                                 )}
-                              </div>
+                        <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                           {catChains.map((chain, chainIdx) => (
+                             <div key={chain.id} className="relative pl-3 border-l-2 border-gray-100 group/chain">
+                                
+                                {chainIdx > 0 && <div className="absolute -left-[2px] top-0 h-4 bg-white"></div>} {/* Spacer for visual separation */}
+                                
+                                <div className="space-y-2">
+                                   {chain.whys.map((why, whyIdx) => (
+                                     <div key={whyIdx} className="relative">
+                                       {/* Arrow for 2nd item onwards */}
+                                       {whyIdx > 0 && (
+                                          <div className="flex justify-center py-1">
+                                             <ArrowDown size={12} className="text-gray-300" />
+                                          </div>
+                                       )}
+                                       
+                                       <div className="flex items-center gap-2">
+                                          <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${whyIdx === 0 ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-600'}`}>
+                                            {whyIdx === 0 ? 'P' : 'W'}
+                                          </div>
+                                          <input 
+                                            disabled={isReadOnly}
+                                            value={why}
+                                            onChange={(e) => updateWhy(chain.id, whyIdx, e.target.value)}
+                                            className={`flex-1 p-2 text-sm border rounded focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all ${whyIdx === 0 ? 'bg-white border-gray-300 text-gray-900 font-medium' : 'bg-gray-50 border-gray-200 text-gray-700'}`}
+                                            placeholder={whyIdx === 0 ? "Identify factor/failure..." : "Why did this happen?"}
+                                          />
+                                          {!isReadOnly && (
+                                            <button 
+                                              onClick={() => {
+                                                // If it's the only item, remove chain? Or just clear.
+                                                if (chain.whys.length === 1) removeChain(chain.id);
+                                                else removeWhy(chain.id, whyIdx);
+                                              }}
+                                              className="text-gray-300 hover:text-red-500 p-1 transition-colors"
+                                            >
+                                               <X size={14}/>
+                                            </button>
+                                          )}
+                                       </div>
+                                     </div>
+                                   ))}
+                                   
+                                   {!isReadOnly && (
+                                     <div className="flex justify-center pt-1">
+                                       <button 
+                                         onClick={() => addNextWhy(chain.id)}
+                                         className="text-[10px] text-blue-500 hover:text-blue-700 hover:underline flex items-center gap-1"
+                                       >
+                                         <PlusCircleIcon size={10} /> Why?
+                                       </button>
+                                     </div>
+                                   )}
+                                </div>
+                             </div>
                            ))}
-                           {chain.whys.length === 0 && <p className="text-xs text-gray-300 italic p-2">No factors added.</p>}
+                           {catChains.length === 0 && <p className="text-xs text-gray-300 italic p-2">No analysis chains started.</p>}
                         </div>
-                        {!isReadOnly && (
-                           <button onClick={() => addFactor(cat)} className="mt-3 w-full border border-dashed border-gray-300 rounded-lg py-2 text-xs text-gray-500 font-bold hover:bg-gray-50 hover:text-green-600 hover:border-green-300 flex items-center justify-center gap-1 transition-all">
-                              <Plus size={14}/> Add Factor
-                           </button>
-                        )}
                      </div>
                    );
                  })}
@@ -305,7 +428,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                     readOnly
                     className="w-full p-4 border border-purple-200 bg-white rounded-lg text-gray-900 leading-relaxed font-medium resize-none focus:outline-none shadow-inner"
                     rows={2}
-                    placeholder={isReadOnly ? "No hypothesis generated." : "Start adding factors above to auto-generate the hypothesis..."}
+                    placeholder={isReadOnly ? "No hypothesis generated." : "Complete the 5 Whys analysis above to auto-generate the hypothesis..."}
                     value={rootCauseHypothesis}
                   />
                </div>
@@ -325,17 +448,18 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                  
                  {/* Ribs Container */}
                  <div className="absolute inset-0 right-40 left-10 z-0">
-                    {chains.filter(c => c.whys.length > 0).map((chain, idx) => {
-                       // Position logic: distribute evenly
-                       const activeChains = chains.filter(c => c.whys.length > 0);
-                       const total = activeChains.length;
+                    {CATEGORIES.map((cat, idx) => {
+                       // Only show category if it has valid chains
+                       const catChains = chains.filter(c => c.category === cat && c.whys.some(w => w.trim()));
+                       // Always show 4 ribs for structure
+                       
                        const isTop = idx % 2 === 0;
-                       const sectionWidth = 100 / Math.ceil(total / 2); 
+                       const sectionWidth = 100 / 2; // 2 main columns for 4 categories
                        const offset = (Math.floor(idx / 2) * sectionWidth) + (sectionWidth / 2);
                        
                        return (
                          <div 
-                           key={chain.category} 
+                           key={cat} 
                            className="absolute w-1 h-full"
                            style={{ left: `${offset}%` }}
                          >
@@ -349,20 +473,30 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                               `}
                             >
                                <div className="font-bold text-xs text-center text-blue-900 w-full uppercase tracking-wide">
-                                 {chain.category}
+                                 {cat}
                                </div>
                             </div>
 
-                            {/* Factors List */}
+                            {/* Factors List (Flattened from chains) */}
                             <div 
                                className={`absolute w-48 text-[10px] text-gray-600 z-10 p-2 transform -translate-x-1/2
                                ${isTop ? 'top-24 text-center' : 'bottom-24 text-center'}
                                `}
                             >
-                               {chain.whys.slice(0, 3).map((w,i) => (
-                                  <div key={i} className="bg-white/80 px-1 rounded mb-1 border border-gray-100 shadow-sm truncate">{w}</div>
-                               ))}
-                               {chain.whys.length > 3 && <div className="text-gray-400 italic">+{chain.whys.length - 3} more...</div>}
+                               {catChains.map((chain, cIdx) => {
+                                  // For Fishbone, we usually show the root cause (last why) or the first factor. 
+                                  // Let's show the FIRST factor (failure mode) and LAST (root) if different
+                                  const validWhys = chain.whys.filter(w => w.trim());
+                                  if(validWhys.length === 0) return null;
+                                  const first = validWhys[0];
+                                  const last = validWhys[validWhys.length - 1];
+                                  
+                                  return (
+                                     <div key={chain.id} className="bg-white/80 px-1 rounded mb-1 border border-gray-100 shadow-sm truncate">
+                                        {first} {validWhys.length > 1 && `→ ${last}`}
+                                     </div>
+                                  );
+                               })}
                             </div>
                          </div>
                        );
@@ -380,7 +514,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                 
                 {/* 1. Frequency Input Table */}
                 <div className="lg:col-span-4 bg-white p-4 rounded shadow border">
-                   <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">1. Enter Frequency</h3>
+                   <h3 className="font-bold text-gray-800 mb-4 border-b pb-2">1. Enter Frequency (Root Causes)</h3>
                    <div className="space-y-2 max-h-[400px] overflow-y-auto">
                      {paretoItems.map(item => (
                        <div key={item.id} className="flex items-center gap-2 py-2 border-b border-gray-100 last:border-0">
@@ -397,7 +531,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                          />
                        </div>
                      ))}
-                     {paretoItems.length === 0 && <p className="text-sm text-gray-500 italic">No factors found. Add factors in 'Factor Analysis' tab.</p>}
+                     {paretoItems.length === 0 && <p className="text-sm text-gray-500 italic">No root causes identified. Add chains in '5 Whys Analysis'.</p>}
                    </div>
                 </div>
 
@@ -407,7 +541,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                    <table className="w-full text-sm text-left border-collapse border border-gray-300">
                       <thead className="bg-gray-100 text-gray-700">
                         <tr>
-                          <th className="p-2 border border-gray-300">FACTOR</th>
+                          <th className="p-2 border border-gray-300">ROOT CAUSE</th>
                           <th className="p-2 border border-gray-300 text-right">FREQUENCY</th>
                           <th className="p-2 border border-gray-300 text-right">TOTAL %</th>
                           <th className="p-2 border border-gray-300 text-right">CUMULATIVE %</th>
@@ -456,6 +590,11 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     </div>
   );
 };
+
+// Helper Icon
+const PlusCircleIcon = ({size}: {size: number}) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+);
 
 // --- Sub-component: Pure SVG Pareto Chart ---
 const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulative: number })[], totalFreq: number }> = ({ data, totalFreq }) => {

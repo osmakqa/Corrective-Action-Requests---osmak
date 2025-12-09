@@ -68,3 +68,66 @@ export const generateCorrectiveSuggestions = async (rootCauses: string[], proble
     return [];
   }
 };
+
+export interface FourMFactors {
+  PEOPLE: string[][];
+  METHODS: string[][];
+  EQUIPMENT: string[][];
+  ENVIRONMENT: string[][];
+}
+
+export const generate4MFactors = async (problemStatement: string): Promise<FourMFactors> => {
+  try {
+    const prompt = `
+      You are a Quality Assurance expert conducting a Root Cause Analysis (Fishbone/Ishikawa).
+      Problem Statement: "${problemStatement}"
+      
+      Task: Identify potential contributing factors for the 4M categories.
+      Categories:
+      1. PEOPLE (Manpower)
+      2. METHODS (Process/Procedures)
+      3. EQUIPMENT (Machines/Tools)
+      4. ENVIRONMENT (Material/Setting)
+
+      For each category, provide 1 or 2 likely causal chains using the "5 Whys" technique.
+      Each chain MUST consist of 2 to 4 levels of "Why" (drill-down factors).
+      
+      Output format: A raw JSON object with keys "PEOPLE", "METHODS", "EQUIPMENT", "ENVIRONMENT". 
+      Each key maps to an ARRAY of string ARRAYS (where each inner array is a chain of whys).
+      
+      Example:
+      {
+        "PEOPLE": [
+           ["Staff made an error", "Fatigue", "Double shift due to shortage"],
+           ["Did not follow SOP", "SOP was confusing", "Poor document control"]
+        ],
+        "METHODS": [
+           ["Process delayed", "Approval step bottleneck", "Manual signature required"]
+        ],
+        "EQUIPMENT": [
+           ["Machine stopped", "Fuse blew", "Power surge"]
+        ],
+        "ENVIRONMENT": []
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const text = response.text || "{}";
+    const parsed = JSON.parse(cleanJsonString(text));
+    
+    // Ensure structure
+    return {
+      PEOPLE: parsed.PEOPLE || [],
+      METHODS: parsed.METHODS || [],
+      EQUIPMENT: parsed.EQUIPMENT || [],
+      ENVIRONMENT: parsed.ENVIRONMENT || []
+    };
+  } catch (error) {
+    console.error("Error generating 4M factors:", error);
+    return { PEOPLE: [], METHODS: [], EQUIPMENT: [], ENVIRONMENT: [] };
+  }
+};

@@ -1,12 +1,11 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CAR, Role, CARStatus, RemedialAction, CorrectiveAction, DEPARTMENTS, RCAData, ISO_CLAUSES, AuditTrailEntry, AuditAction, RootCause } from '../types';
 import { fetchCARById, updateCAR, createCAR, updateRegistryOnSubmission, logAuditEvent, fetchAuditTrailForCAR } from '../services/store';
 import { generateCARPdf } from '../services/pdfGenerator';
 import { generateRemedialSuggestions, generateCorrectiveSuggestions } from '../services/aiService';
-import { Save, CheckCircle, XCircle, ArrowLeft, Plus, Trash2, GitBranch, AlertCircle, ShieldCheck, BookOpen, X, Search, ChevronRight, ChevronDown, Eye, RefreshCw, Loader2, MessageSquare, Archive, PlusCircle, HelpCircle, Download, FileText, Activity, Clock, User, PlayCircle, RotateCcw, PenLine, Sparkles, Wand2, Users, Building } from 'lucide-react';
+import { Save, CheckCircle, XCircle, ArrowLeft, Plus, Trash2, GitBranch, AlertCircle, ShieldCheck, BookOpen, X, Search, ChevronRight, ChevronDown, Eye, RefreshCw, Loader2, MessageSquare, Archive, PlusCircle, HelpCircle, Download, FileText, Activity, Clock, User, PlayCircle, RotateCcw, PenLine, Sparkles, Wand2, Users, Building, BrainCircuit } from 'lucide-react';
 import { RCAModule } from './RCAModule';
 
 interface CARFormProps {
@@ -155,7 +154,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
     setIsCorrectiveAiLoading(false);
   };
 
-  if (loading || !car) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-green-700" size={48} /></div>;
+  if (loading || !car) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-green-700" size={48} /></div>;
 
   const validateNewCar = (): boolean => {
     if (!car) return false;
@@ -231,28 +230,41 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
   };
 
   const handleRCASave = (data: RCAData) => {
-    // With new 4M model, derive rootCauses from factors (chains) if needed, 
-    // OR prioritize the final hypothesis if available.
+    // 5 Whys Principle Implementation: 
+    // "Not every entry is a root cause." 
+    // We must extract only the FINAL 'Why' from each chain to use as the Root Cause.
     
     let newRootCauses: RootCause[] = [];
     
-    // Priority: Hypothesis
-    if (data.rootCauseHypothesis && data.rootCauseHypothesis.trim()) {
+    if (data.chains && data.chains.length > 0) {
+       newRootCauses = data.chains.map(chain => {
+          // Filter out empty entries
+          const validWhys = chain.whys.filter(w => w && w.trim().length > 0);
+          
+          if (validWhys.length > 0) {
+             // The last one is the Root Cause
+             const lastWhy = validWhys[validWhys.length - 1];
+             return {
+                id: chain.id,
+                cause: lastWhy
+             };
+          }
+          return null;
+       }).filter((item): item is RootCause => item !== null);
+    }
+    
+    // If we have a summary hypothesis, we can append it or just use it as the summary field.
+    // The previous logic allowed replacing everything with hypothesis. 
+    // Let's ensure if chains exist, we use them, but if user only used AI hypothesis without chains (edge case), we use that.
+    if (newRootCauses.length === 0 && data.rootCauseHypothesis && data.rootCauseHypothesis.trim()) {
         newRootCauses = [{ id: 'hypothesis', cause: data.rootCauseHypothesis }];
-    } else {
-        // Fallback: collect all factors from 4M
-        newRootCauses = (data.chains || []).flatMap(chain => 
-            chain.whys
-                .filter(w => w && w.trim().length > 0)
-                .map((w, idx) => ({ id: `${chain.id}-${idx}`, cause: w }))
-        );
     }
 
     setCar(prev => prev ? ({ 
       ...prev, 
       rcaData: data,
       rootCauses: newRootCauses,
-      causeOfNonConformance: data.rootCauseHypothesis // Sync hypothesis
+      causeOfNonConformance: data.rootCauseHypothesis // Sync hypothesis text
     }) : null);
     setShowRCA(false);
     // Clear old corrective suggestions since RCA changed
@@ -925,7 +937,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                        <label className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
                           <GitBranch size={16} className="text-purple-600"/> Root Cause Analysis (RCA)
                        </label>
-                       <p className="text-xs text-gray-500 mt-1">Use 4M Factor Analysis (Ishikawa) to identify root causes.</p>
+                       <p className="text-xs text-gray-500 mt-1">Use 4M Factor Analysis with 5 Whys to identify root causes.</p>
                     </div>
                     <button 
                       onClick={() => setShowRCA(true)}
@@ -937,7 +949,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                  </div>
 
                  <div className="bg-white p-4 rounded border border-gray-200">
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Identified Root Causes (Hypothesis)</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Identified Root Causes</label>
                     {car.rootCauses && car.rootCauses.length > 0 ? (
                        <ul className="space-y-2">
                           {car.rootCauses.map((rc, idx) => (
@@ -977,10 +989,10 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                         <button 
                           onClick={handleGenerateRemedial} 
                           disabled={isRemedialAiLoading}
-                          className="text-xs font-bold text-purple-600 hover:text-purple-700 hover:bg-purple-50 px-2 py-1 rounded flex items-center gap-1 transition-colors disabled:opacity-50"
+                          className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isRemedialAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                          Suggest with AI
+                          {isRemedialAiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                          AI Suggest
                         </button>
                         
                         {remedialSuggestions.length > 0 && (
@@ -1092,10 +1104,10 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                               <button 
                                 onClick={handleGenerateCorrective} 
                                 disabled={isCorrectiveAiLoading}
-                                className="text-xs font-bold text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-1 rounded flex items-center gap-1 transition-colors disabled:opacity-50"
+                                className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-3 py-1.5 rounded-full text-xs font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
                               >
-                                {isCorrectiveAiLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                                Suggest Actions from Root Causes
+                                {isCorrectiveAiLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                                AI Suggest from Root Causes
                               </button>
                               
                               {correctiveSuggestions.length > 0 && (
