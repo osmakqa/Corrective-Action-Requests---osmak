@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { PlusCircle, AlertTriangle, LogOut, LayoutDashboard, Archive, Eye, ArrowLeftCircle, PieChart, Briefcase, FileText, List, CheckSquare, ChevronDown, ChevronRight, Activity, Menu, X, Clock } from 'lucide-react';
@@ -52,7 +53,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, userRole, userDepartme
   const closeMobileMenu = () => setIsMobileMenuOpen(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-800 overflow-hidden">
+    <div className="flex h-screen bg-[#e8f5e9] font-sans text-gray-800 overflow-hidden">
       
       {/* Mobile Header Bar */}
       <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-[#009a3e] flex items-center justify-between px-4 z-50 shadow-md">
@@ -320,7 +321,7 @@ export const Layout: React.FC<LayoutProps> = ({ children, userRole, userDepartme
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto bg-[#f8fafc] relative mt-16 lg:mt-0">
+      <main className="flex-1 overflow-y-auto bg-[#e8f5e9] relative mt-16 lg:mt-0">
         <div className="max-w-7xl mx-auto p-4 md:p-8 pb-20">
           {children}
         </div>

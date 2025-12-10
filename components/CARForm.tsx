@@ -941,7 +941,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                     </div>
                     <button 
                       onClick={() => setShowRCA(true)}
-                      className={`border border-gray-300 text-gray-700 hover:text-purple-700 hover:border-purple-300 px-4 py-2 rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center gap-2 ${canRespond || hasRCAData ? 'bg-white' : 'bg-gray-100 cursor-not-allowed opacity-70'}`}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold shadow-md transition-all flex items-center gap-2 ${canRespond || hasRCAData ? 'bg-purple-600 text-white hover:bg-purple-700 hover:scale-105' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
                       disabled={!canRespond && !hasRCAData}
                     >
                       {canRespond ? (hasRCAData ? 'Edit Analysis' : 'Start Analysis') : 'View Analysis'}
