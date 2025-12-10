@@ -69,46 +69,62 @@ export const generateCorrectiveSuggestions = async (rootCauses: string[], proble
   }
 };
 
-export interface FourMFactors {
-  PEOPLE: string[][];
-  METHODS: string[][];
-  EQUIPMENT: string[][];
-  ENVIRONMENT: string[][];
-}
-
-export const generate4MFactors = async (problemStatement: string): Promise<FourMFactors> => {
+// Generates chains of "Whys"
+export const generateRCAChains = async (problemStatement: string): Promise<string[][]> => {
   try {
     const prompt = `
-      You are a Quality Assurance expert conducting a Root Cause Analysis (Fishbone/Ishikawa).
+      You are a Quality Assurance expert conducting a Root Cause Analysis using the 5 Whys technique.
       Problem Statement: "${problemStatement}"
       
-      Task: Identify potential contributing factors for the 4M categories.
-      Categories:
-      1. PEOPLE (Manpower)
-      2. METHODS (Process/Procedures)
-      3. EQUIPMENT (Machines/Tools)
-      4. ENVIRONMENT (Material/Setting)
-
-      For each category, provide 1 or 2 likely causal chains using the "5 Whys" technique.
-      Each chain MUST consist of 2 to 4 levels of "Why" (drill-down factors).
+      Task: Identify potential root causes by generating 3 to 4 distinct "Why Chains".
+      Each chain must consist of 2 to 5 levels of "Why" (drill-down factors), starting from a symptom down to a root cause.
       
-      Output format: A raw JSON object with keys "PEOPLE", "METHODS", "EQUIPMENT", "ENVIRONMENT". 
-      Each key maps to an ARRAY of string ARRAYS (where each inner array is a chain of whys).
+      Output format: A raw JSON ARRAY of string ARRAYS.
       
       Example:
-      {
-        "PEOPLE": [
-           ["Staff made an error", "Fatigue", "Double shift due to shortage"],
-           ["Did not follow SOP", "SOP was confusing", "Poor document control"]
-        ],
-        "METHODS": [
-           ["Process delayed", "Approval step bottleneck", "Manual signature required"]
-        ],
-        "EQUIPMENT": [
-           ["Machine stopped", "Fuse blew", "Power surge"]
-        ],
-        "ENVIRONMENT": []
-      }
+      [
+         ["Staff made an error", "Fatigue", "Double shift due to shortage"],
+         ["Machine stopped", "Fuse blew", "Power surge", "No surge protector installed"]
+      ]
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+    });
+
+    const text = response.text || "[]";
+    const parsed = JSON.parse(cleanJsonString(text));
+    
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("Error generating RCA chains:", error);
+    return [];
+  }
+};
+
+// Classifies chains into 4M categories
+export const categorizeRCAChains = async (chains: {id: string, whys: string[]}[]): Promise<Record<string, string>> => {
+  try {
+    if (chains.length === 0) return {};
+
+    const prompt = `
+      You are a Quality Assurance expert categorizing Root Cause Analysis data for a Fishbone Diagram.
+      
+      Categories:
+      - PEOPLE
+      - METHODS
+      - EQUIPMENT
+      - ENVIRONMENT
+      
+      I will provide a list of Causal Chains (ID and Factors). 
+      For each chain, analyze the factors and assign the most appropriate Category.
+      
+      Input Data:
+      ${JSON.stringify(chains.map(c => ({ id: c.id, chain: c.whys.join(' -> ') })))}
+      
+      Output format: A raw JSON object where Keys are the "id" and Values are the "Category".
+      Example: { "chain-1": "PEOPLE", "chain-2": "EQUIPMENT" }
     `;
 
     const response = await ai.models.generateContent({
@@ -117,17 +133,10 @@ export const generate4MFactors = async (problemStatement: string): Promise<FourM
     });
 
     const text = response.text || "{}";
-    const parsed = JSON.parse(cleanJsonString(text));
-    
-    // Ensure structure
-    return {
-      PEOPLE: parsed.PEOPLE || [],
-      METHODS: parsed.METHODS || [],
-      EQUIPMENT: parsed.EQUIPMENT || [],
-      ENVIRONMENT: parsed.ENVIRONMENT || []
-    };
+    return JSON.parse(cleanJsonString(text));
   } catch (error) {
-    console.error("Error generating 4M factors:", error);
-    return { PEOPLE: [], METHODS: [], EQUIPMENT: [], ENVIRONMENT: [] };
+    console.error("Error categorizing chains:", error);
+    // Return empty if fail, logic will handle defaults
+    return {};
   }
 };
