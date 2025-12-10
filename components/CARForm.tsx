@@ -230,13 +230,37 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
   };
 
   const handleRCASave = (data: RCAData) => {
-    // 5 Whys Principle Implementation: 
-    // "Not every entry is a root cause." 
-    // We must extract only the FINAL 'Why' from each chain to use as the Root Cause.
-    
     let newRootCauses: RootCause[] = [];
     
-    if (data.chains && data.chains.length > 0) {
+    // Logic 1: Check Pareto Data (80/20 Rule)
+    const validParetoItems = data.paretoItems.filter(i => i.frequency > 0);
+    const hasParetoData = validParetoItems.length > 0;
+
+    if (hasParetoData) {
+       // Sort by Frequency Descending
+       const sorted = [...validParetoItems].sort((a,b) => b.frequency - a.frequency);
+       const totalFreq = sorted.reduce((sum, item) => sum + item.frequency, 0);
+       
+       if (totalFreq > 0) {
+           let runningFreq = 0;
+           // Select items that contribute to top 80% (roughly)
+           for (const item of sorted) {
+              runningFreq += item.frequency;
+              const percent = (item.frequency / totalFreq);
+              const cumulative = (runningFreq / totalFreq);
+              
+              // We include the item if the previous cumulative was under 0.8
+              // OR if it's the very first item (even if > 0.8)
+              // This logic captures the "Vital Few"
+              newRootCauses.push({ id: item.id, cause: item.cause });
+              
+              if (cumulative >= 0.8) break;
+           }
+       }
+    }
+    
+    // Logic 2: Fallback to 5 Whys (Last Item) if NO Pareto data was entered
+    if (newRootCauses.length === 0 && data.chains && data.chains.length > 0) {
        newRootCauses = data.chains.map(chain => {
           // Filter out empty entries
           const validWhys = chain.whys.filter(w => w && w.trim().length > 0);
@@ -253,9 +277,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
        }).filter((item): item is RootCause => item !== null);
     }
     
-    // If we have a summary hypothesis, we can append it or just use it as the summary field.
-    // The previous logic allowed replacing everything with hypothesis. 
-    // Let's ensure if chains exist, we use them, but if user only used AI hypothesis without chains (edge case), we use that.
+    // Logic 3: Fallback to Hypothesis (if manual)
     if (newRootCauses.length === 0 && data.rootCauseHypothesis && data.rootCauseHypothesis.trim()) {
         newRootCauses = [{ id: 'hypothesis', cause: data.rootCauseHypothesis }];
     }
@@ -937,7 +959,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                        <label className="text-sm font-bold text-gray-800 uppercase tracking-wide flex items-center gap-2">
                           <GitBranch size={16} className="text-purple-600"/> Root Cause Analysis (RCA)
                        </label>
-                       <p className="text-xs text-gray-500 mt-1">Use 4M Factor Analysis with 5 Whys to identify root causes.</p>
+                       <p className="text-xs text-gray-500 mt-1">Use 5 Whys and Pareto Analysis to identify root causes.</p>
                     </div>
                     <button 
                       onClick={() => setShowRCA(true)}
@@ -949,7 +971,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                  </div>
 
                  <div className="bg-white p-4 rounded border border-gray-200">
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Identified Root Causes</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-2 block">Identified Root Causes (Vital Few)</label>
                     {car.rootCauses && car.rootCauses.length > 0 ? (
                        <ul className="space-y-2">
                           {car.rootCauses.map((rc, idx) => (

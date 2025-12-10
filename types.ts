@@ -476,7 +476,7 @@ export interface RootCause {
 
 export interface RCAChain {
   id: string;
-  category?: string; // e.g. 'PEOPLE', 'METHODS'
+  category?: string; // e.g. 'PEOPLE', 'METHODS' - kept for compatibility but not manually used
   whys: string[]; // Reused to store Factors
 }
 

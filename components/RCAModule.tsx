@@ -1,9 +1,13 @@
 
+
+
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { RCAData, RCAChain, ParetoItem } from '../types';
-import { Plus, Trash2, ArrowRight, TrendingUp, Fish, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, ArrowDown, GitCommit, Wand2 } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
-import { generateRCAChains, categorizeRCAChains } from '../services/aiService';
+import { generateRCAChains } from '../services/aiService';
 
 interface RCAModuleProps {
   initialData: RCAData;
@@ -20,17 +24,12 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   const [activeTab, setActiveTab] = useState<'analysis' | 'fishbone' | 'pareto'>('analysis');
   const [isAiGenerating, setIsAiGenerating] = useState(false);
   const [isAiFillingFactors, setIsAiFillingFactors] = useState(false);
-  const [isAiCategorizing, setIsAiCategorizing] = useState(false);
-
-  // Categories for Fishbone
-  const CATEGORIES = ['PEOPLE', 'METHODS', 'EQUIPMENT', 'ENVIRONMENT'];
 
   // Ensure at least one chain exists if empty
   useEffect(() => {
     if (chains.length === 0 && !isReadOnly) {
       setChains([{
         id: crypto.randomUUID(),
-        category: 'METHODS', // Default, will be reclassified
         whys: ['']
       }]);
     }
@@ -109,7 +108,6 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
       
       const addedChains = generatedChains.map(chainWhys => ({
          id: crypto.randomUUID(),
-         category: 'METHODS', // Default
          whys: chainWhys
       }));
 
@@ -123,7 +121,6 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   const addChain = () => {
     setChains(prev => [...prev, {
       id: crypto.randomUUID(),
-      category: 'METHODS', // Default
       whys: ['']
     }]);
   };
@@ -167,25 +164,9 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     setChains(prev => prev.filter(c => c.id !== chainId));
   };
   
-  // Handle Tab Switch (Trigger Classification for Fishbone)
+  // Handle Tab Switch
   const handleTabChange = async (tab: 'analysis' | 'fishbone' | 'pareto') => {
     setActiveTab(tab);
-    
-    if (tab === 'fishbone' && chains.some(c => c.whys.some(w => w.trim()))) {
-       // Trigger classification
-       setIsAiCategorizing(true);
-       const mapping = await categorizeRCAChains(chains.filter(c => c.whys.some(w => w.trim())));
-       
-       setChains(prev => prev.map(c => {
-          if (mapping[c.id]) {
-             // Validate it is one of the 4Ms
-             const cat = mapping[c.id].toUpperCase();
-             if (CATEGORIES.includes(cat)) return { ...c, category: cat };
-          }
-          return c;
-       }));
-       setIsAiCategorizing(false);
-    }
   };
 
   // Sync Pareto Data
@@ -254,7 +235,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
               <Sparkles size={20} className="text-yellow-300"/> 
               AI-Assisted Root Cause Analysis
             </h2>
-            <p className="text-xs text-green-200 opacity-80 mt-1">5 Whys Principle • Fishbone (AI Categorized) • Pareto</p>
+            <p className="text-xs text-green-200 opacity-80 mt-1">5 Whys Principle • Fishbone Diagram • Pareto Chart</p>
           </div>
           <div className="space-x-2 flex items-center">
             {!isReadOnly && activeTab === 'analysis' && (
@@ -284,7 +265,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
             <LayoutGrid size={18}/> 5 Whys Analysis
           </button>
           <button onClick={() => handleTabChange('fishbone')} className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'fishbone' ? 'bg-white text-green-800 border-t-4 border-green-600 shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>
-            <Fish size={18}/> Fishbone Diagram
+            <GitBranch size={18}/> Fishbone Diagram
           </button>
           <button onClick={() => handleTabChange('pareto')} className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'pareto' ? 'bg-white text-green-800 border-t-4 border-green-600 shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>
             <TrendingUp size={18}/> Pareto Chart
@@ -294,7 +275,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
           
-          {/* TAB 1: 5 WHYS ANALYSIS (List View - No Categories) */}
+          {/* TAB 1: 5 WHYS ANALYSIS (List View) */}
           {activeTab === 'analysis' && (
             <div className="flex flex-col h-full space-y-6">
                
@@ -420,81 +401,23 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
             </div>
           )}
 
-          {/* TAB 2: FISHBONE (AI Categorized) */}
+          {/* TAB 2: FISHBONE (Dynamic Layout based on Chains) */}
           {activeTab === 'fishbone' && (
-            <div className="h-full flex flex-col items-center justify-center overflow-x-auto min-h-[500px] relative">
-              {isAiCategorizing && (
-                 <div className="absolute inset-0 bg-white/80 z-20 flex flex-col items-center justify-center backdrop-blur-sm">
-                    <Loader2 size={48} className="animate-spin text-blue-600 mb-4"/>
-                    <p className="text-blue-800 font-bold text-lg">AI is categorizing your chains into 4M...</p>
-                 </div>
-              )}
-              
-              <div className="relative w-full max-w-5xl h-[500px] flex items-center bg-white p-8 rounded-xl shadow border">
-                 {/* Spine */}
-                 <div className="absolute top-1/2 left-10 right-40 h-2 bg-blue-900 z-0"></div>
-                 {/* Head */}
-                 <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-48 h-32 bg-yellow-400 rounded-[50px] flex items-center justify-center text-center p-4 z-10 border-4 border-blue-900 shadow-lg">
-                    <span className="text-sm font-bold text-blue-900 line-clamp-4 leading-tight">{problemStatement || "Problem Statement"}</span>
-                 </div>
-                 
-                 {/* Ribs Container */}
-                 <div className="absolute inset-0 right-40 left-10 z-0">
-                    {CATEGORIES.map((cat, idx) => {
-                       // Show chains for this category
-                       const catChains = chains.filter(c => c.category === cat && c.whys.some(w => w.trim()));
-                       
-                       const isTop = idx % 2 === 0;
-                       const sectionWidth = 100 / 2; // 2 main columns for 4 categories
-                       const offset = (Math.floor(idx / 2) * sectionWidth) + (sectionWidth / 2);
-                       
-                       return (
-                         <div 
-                           key={cat} 
-                           className="absolute w-1 h-full"
-                           style={{ left: `${offset}%` }}
-                         >
-                            {/* The Bone Line */}
-                            <div className={`absolute left-0 w-1 bg-blue-700 h-1/2 ${isTop ? 'bottom-1/2 origin-bottom -rotate-45' : 'top-1/2 origin-top rotate-45'}`}></div>
-                            
-                            {/* The Label Box (Category) */}
-                            <div 
-                              className={`absolute w-40 bg-white border-2 border-blue-800 shadow-md p-2 rounded flex flex-col items-center justify-center z-20 transform -translate-x-1/2
-                                ${isTop ? 'top-10' : 'bottom-10'}
-                              `}
-                            >
-                               <div className="font-bold text-xs text-center text-blue-900 w-full uppercase tracking-wide">
-                                 {cat}
-                               </div>
-                            </div>
-
-                            {/* Factors List (Flattened from chains) */}
-                            <div 
-                               className={`absolute w-48 text-[10px] text-gray-600 z-10 p-2 transform -translate-x-1/2 flex flex-col items-center gap-1
-                               ${isTop ? 'top-24' : 'bottom-24'}
-                               `}
-                            >
-                               {catChains.map((chain, cIdx) => {
-                                  const validWhys = chain.whys.filter(w => w.trim());
-                                  if(validWhys.length === 0) return null;
-                                  const first = validWhys[0];
-                                  const last = validWhys[validWhys.length - 1];
-                                  
-                                  return (
-                                     <div key={chain.id} className="bg-white/90 px-2 py-1 rounded border border-gray-200 shadow-sm w-full text-center">
-                                        <span className="font-bold text-gray-800">{first}</span>
-                                        {validWhys.length > 1 && <div className="text-gray-500">root: {last}</div>}
-                                     </div>
-                                  );
-                               })}
-                               {catChains.length === 0 && <span className="text-gray-300 italic scale-75">No factors</span>}
-                            </div>
-                         </div>
-                       );
-                    })}
-                 </div>
+              <div className="flex flex-col h-full">
+                  <h3 className="font-bold text-gray-700 uppercase tracking-wide text-sm mb-4 flex justify-between items-center">
+                      <span>Fishbone Diagram (Ishikawa)</span>
+                  </h3>
+                  
+                  <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden relative">
+                      {chains.length === 0 ? (
+                          <div className="flex items-center justify-center h-full text-gray-400 italic">
+                              No data to visualize. Add chains in the "5 Whys Analysis" tab first.
+                          </div>
+                      ) : (
+                          <FishboneSVG chains={chains} problem={problemStatement} />
+                      )}
+                  </div>
               </div>
-            </div>
           )}
 
           {/* TAB 3: PARETO */}
@@ -540,7 +463,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                       </thead>
                       <tbody>
                         {paretoData.map((row, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50">
+                          <tr key={idx} className={`hover:bg-gray-50 ${row.cumulative <= 80 ? 'bg-blue-50' : ''}`}>
                              <td className="p-2 border border-gray-300 font-medium truncate max-w-[200px]" title={row.cause}>{row.cause}</td>
                              <td className="p-2 border border-gray-300 text-right">{row.frequency}</td>
                              <td className="p-2 border border-gray-300 text-right">{row.percent.toFixed(2)}%</td>
@@ -555,6 +478,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                         </tr>
                       </tbody>
                    </table>
+                   <p className="text-xs text-blue-600 mt-2 font-medium">* Highlighted rows indicate root causes within the top 80% (Vital Few) that will be auto-selected.</p>
                 </div>
 
                 {/* 3. SVG Chart */}
@@ -586,6 +510,117 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
 const PlusCircleIcon = ({size}: {size: number}) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
 );
+
+// --- Fishbone SVG ---
+const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains, problem }) => {
+    const width = 1000;
+    const height = 500;
+    const padding = 50;
+    
+    // Spine
+    const spineY = height / 2;
+    const spineStartX = padding;
+    const spineEndX = width - 250; // Room for head
+
+    // Rib Geometry
+    const ribLength = 180;
+    const ribAngle = 60 * (Math.PI / 180); // 60 degrees in radians
+    const topRibDy = -Math.sin(ribAngle) * ribLength;
+    const topRibDx = -Math.cos(ribAngle) * ribLength;
+    const bottomRibDy = Math.sin(ribAngle) * ribLength;
+    
+    // Distribute chains top and bottom (each chain is a bone)
+    // Filter out chains with no content to avoid empty sticks
+    const validChains = chains.filter(c => c.whys.some(w => w.trim()));
+    const topChains = validChains.filter((_, i) => i % 2 === 0);
+    const bottomChains = validChains.filter((_, i) => i % 2 !== 0);
+
+    const spacing = (spineEndX - spineStartX) / (Math.ceil(validChains.length / 2) + 1);
+
+    return (
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+            <defs>
+                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                    <polygon points="0 0, 10 3.5, 0 7" fill="#1e293b" />
+                </marker>
+            </defs>
+            
+            {/* Main Spine */}
+            <line 
+                x1={spineStartX} y1={spineY} 
+                x2={spineEndX} y2={spineY} 
+                stroke="#1e293b" strokeWidth="4" 
+                markerEnd="url(#arrowhead)" 
+            />
+
+            {/* Head (Problem) */}
+            <g transform={`translate(${spineEndX + 20}, ${spineY})`}>
+                <rect x="0" y="-40" width="200" height="80" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" />
+                <text x="100" y="0" textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="bold" fill="#7f1d1d" className="truncate">
+                    {problem.length > 50 ? problem.substring(0, 50) + '...' : problem}
+                </text>
+            </g>
+
+            {/* Top Ribs */}
+            {topChains.map((chain, i) => {
+                const rootX = spineEndX - ((i + 1) * spacing);
+                const tipX = rootX + topRibDx;
+                const tipY = spineY + topRibDy;
+                
+                // Whys are the items on the bone
+                const items = chain.whys.filter(w => w.trim());
+
+                return (
+                    <g key={`top-${i}`}>
+                        {/* Rib Line */}
+                        <line x1={tipX} y1={tipY} x2={rootX} y2={spineY} stroke="#334155" strokeWidth="2" />
+                        
+                        {/* Items */}
+                        {items.map((item, j) => {
+                             const itemY = tipY + ((j + 1) * 25);
+                             const itemXStart = tipX + ((j + 1) * (topRibDx / -4)); // Slant offset
+                             return (
+                                 <g key={`t-item-${j}`}>
+                                     <line x1={itemXStart} y1={itemY} x2={itemXStart + 100} y2={itemY} stroke="#64748b" strokeWidth="1" />
+                                     <text x={itemXStart + 105} y={itemY + 4} fontSize="10" fill="#334155">{item}</text>
+                                 </g>
+                             );
+                        })}
+                    </g>
+                );
+            })}
+
+            {/* Bottom Ribs */}
+            {bottomChains.map((chain, i) => {
+                const rootX = spineEndX - ((i + 1) * spacing) - (spacing/2); // Offset slightly
+                const tipX = rootX + topRibDx;
+                const tipY = spineY + bottomRibDy;
+                
+                const items = chain.whys.filter(w => w.trim());
+
+                return (
+                    <g key={`bot-${i}`}>
+                        {/* Rib Line */}
+                        <line x1={tipX} y1={tipY} x2={rootX} y2={spineY} stroke="#334155" strokeWidth="2" />
+                        
+                        {/* Items */}
+                        {items.map((item, j) => {
+                             const itemY = tipY - ((j + 1) * 25);
+                             const itemXStart = tipX + ((j + 1) * (topRibDx / -4));
+                             return (
+                                 <g key={`b-item-${j}`}>
+                                     <line x1={itemXStart} y1={itemY} x2={itemXStart + 100} y2={itemY} stroke="#64748b" strokeWidth="1" />
+                                     <text x={itemXStart + 105} y={itemY + 4} fontSize="10" fill="#334155">{item}</text>
+                                 </g>
+                             );
+                        })}
+                    </g>
+                );
+            })}
+
+        </svg>
+    );
+};
 
 // --- Sub-component: Pure SVG Pareto Chart ---
 const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulative: number })[], totalFreq: number }> = ({ data, totalFreq }) => {
@@ -709,7 +744,13 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
            <line x1="80" y1="5" x2="100" y2="5" stroke="#ef4444" strokeWidth="2" />
            <circle cx="90" cy="5" r="2" fill="#ef4444" />
            <text x="105" y="9" fontSize="10">Cumulative %</text>
+           
+           <line x1="160" y1="5" x2="250" y2="5" stroke="#000" strokeWidth="1" strokeDasharray="4 4" />
+           <text x="255" y="9" fontSize="10">80% Threshold</text>
         </g>
+        
+        {/* 80% Line */}
+        <line x1={0} y1={scaleYRight(80)} x2={graphWidth} y2={scaleYRight(80)} stroke="#000" strokeWidth="1" strokeDasharray="4 4" />
 
       </g>
     </svg>

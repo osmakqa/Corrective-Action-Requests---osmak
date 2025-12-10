@@ -1,5 +1,11 @@
 
+
+
+
+
+
 import { GoogleGenAI } from "@google/genai";
+import { RCAChain } from '../types';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -100,43 +106,5 @@ export const generateRCAChains = async (problemStatement: string): Promise<strin
   } catch (error) {
     console.error("Error generating RCA chains:", error);
     return [];
-  }
-};
-
-// Classifies chains into 4M categories
-export const categorizeRCAChains = async (chains: {id: string, whys: string[]}[]): Promise<Record<string, string>> => {
-  try {
-    if (chains.length === 0) return {};
-
-    const prompt = `
-      You are a Quality Assurance expert categorizing Root Cause Analysis data for a Fishbone Diagram.
-      
-      Categories:
-      - PEOPLE
-      - METHODS
-      - EQUIPMENT
-      - ENVIRONMENT
-      
-      I will provide a list of Causal Chains (ID and Factors). 
-      For each chain, analyze the factors and assign the most appropriate Category.
-      
-      Input Data:
-      ${JSON.stringify(chains.map(c => ({ id: c.id, chain: c.whys.join(' -> ') })))}
-      
-      Output format: A raw JSON object where Keys are the "id" and Values are the "Category".
-      Example: { "chain-1": "PEOPLE", "chain-2": "EQUIPMENT" }
-    `;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-
-    const text = response.text || "{}";
-    return JSON.parse(cleanJsonString(text));
-  } catch (error) {
-    console.error("Error categorizing chains:", error);
-    // Return empty if fail, logic will handle defaults
-    return {};
   }
 };
