@@ -450,30 +450,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                    onChange={(e) => setSearchTerm(e.target.value)}
                 />
              </div>
-
-             {/* Status Toggle (Only if not in strictly filtered modes like pending-plans) */}
-             {viewMode !== 'pending-plans' && (
-                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
-                    <button 
-                        onClick={() => setStatusFilter('OPEN')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${statusFilter === 'OPEN' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Active / Open
-                    </button>
-                    <button 
-                        onClick={() => setStatusFilter('CLOSED')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${statusFilter === 'CLOSED' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Closed
-                    </button>
-                    <button 
-                        onClick={() => setStatusFilter('ALL')}
-                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${statusFilter === 'ALL' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        All Records
-                    </button>
-                </div>
-             )}
           </div>
 
           {/* Additional Role-Based Filters */}

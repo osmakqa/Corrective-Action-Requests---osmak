@@ -1,8 +1,3 @@
-
-
-
-
-
 import React, { useState } from 'react';
 import { Role, DEPARTMENTS, NURSING_UNITS, CLINICAL_DEPARTMENTS, QA_PERSONNEL } from '../types';
 import { ChevronDown, Eye, EyeOff, BookOpen, CheckCircle, X, FileText, Activity, ShieldCheck, Archive, AlertTriangle, PlayCircle, HelpCircle, Monitor, BarChart2, AlertOctagon } from 'lucide-react';
@@ -14,7 +9,7 @@ interface LoginProps {
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [activeTab, setActiveTab] = useState<Role>(Role.SECTION);
   const [selectedDept, setSelectedDept] = useState('');
-  const [sectionCategory, setSectionCategory] = useState<'General' | 'Nursing' | 'Clinical' | 'IMT'>('General');
+  const [sectionCategory, setSectionCategory] = useState<'General' | 'Nursing' | 'Clinical'>('General');
   const [selectedQA, setSelectedQA] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -513,37 +508,25 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       >
                         Clinical Dept
                       </button>
-                      <button 
-                        onClick={() => { setSectionCategory('IMT'); setSelectedDept('IMT'); }}
-                        className={`flex-1 py-1.5 text-xs font-bold rounded transition-colors ${sectionCategory === 'IMT' ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:bg-gray-100'}`}
-                      >
-                        IMT
-                      </button>
                     </div>
 
                     <label className="block text-xs font-bold text-gray-500 uppercase mb-1.5">
-                      {sectionCategory === 'General' ? 'Section' : (sectionCategory === 'Nursing' ? 'Nursing Unit' : (sectionCategory === 'Clinical' ? 'Clinical Department' : 'Department'))}
+                      {sectionCategory === 'General' ? 'Section' : (sectionCategory === 'Nursing' ? 'Nursing Unit' : 'Clinical Department')}
                     </label>
                     
-                    {sectionCategory !== 'IMT' ? (
-                        <div className="relative">
-                           <select 
-                             value={selectedDept} 
-                             onChange={(e) => setSelectedDept(e.target.value)}
-                             className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 appearance-none bg-white focus:ring-2 focus:ring-[#009a3e] focus:border-transparent outline-none transition-all cursor-pointer hover:border-gray-400 text-sm"
-                            >
-                              <option value="">Select...</option>
-                              {sectionCategory === 'General' && DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                              {sectionCategory === 'Nursing' && NURSING_UNITS.map(d => <option key={d} value={d}>{d}</option>)}
-                              {sectionCategory === 'Clinical' && CLINICAL_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                            <ChevronDown className="absolute right-3 top-3.5 text-gray-600 pointer-events-none" size={18} />
-                        </div>
-                    ) : (
-                        <div className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 bg-gray-100 text-sm font-medium select-none">
-                            IMT
-                        </div>
-                    )}
+                    <div className="relative">
+                       <select 
+                         value={selectedDept} 
+                         onChange={(e) => setSelectedDept(e.target.value)}
+                         className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 appearance-none bg-white focus:ring-2 focus:ring-[#009a3e] focus:border-transparent outline-none transition-all cursor-pointer hover:border-gray-400 text-sm"
+                        >
+                          <option value="">Select...</option>
+                          {sectionCategory === 'General' && DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                          {sectionCategory === 'Nursing' && NURSING_UNITS.map(d => <option key={d} value={d}>{d}</option>)}
+                          {sectionCategory === 'Clinical' && CLINICAL_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-3.5 text-gray-600 pointer-events-none" size={18} />
+                    </div>
                  </div>
                )}
 

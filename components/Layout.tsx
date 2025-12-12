@@ -195,15 +195,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, userRole, userDepartme
                      <NavItem 
                        to="/closed-cars" 
                        icon={<Archive size={20}/>} 
-                       label="Closed CARs" 
+                       label="CARs" 
                        active={location.pathname === '/closed-cars'}
-                       onClick={closeMobileMenu}
-                     />
-                     <NavItem 
-                       to="/recent-activity" 
-                       icon={<Activity size={20}/>} 
-                       label="Recent Activity" 
-                       active={location.pathname === '/recent-activity'}
                        onClick={closeMobileMenu}
                      />
                    </>
@@ -233,22 +226,8 @@ export const Layout: React.FC<LayoutProps> = ({ children, userRole, userDepartme
                      <NavItem 
                        to="/section/all-cars" 
                        icon={<List size={20}/>} 
-                       label="All CARs" 
+                       label="CARs" 
                        active={location.pathname === '/section/all-cars'}
-                       onClick={closeMobileMenu}
-                     />
-                     <NavItem 
-                       to="/closed-cars" 
-                       icon={<Archive size={20}/>} 
-                       label="Closed CARs" 
-                       active={location.pathname === '/closed-cars'}
-                       onClick={closeMobileMenu}
-                     />
-                     <NavItem 
-                       to="/recent-activity" 
-                       icon={<Activity size={20}/>} 
-                       label="Recent Activity" 
-                       active={location.pathname === '/recent-activity'}
                        onClick={closeMobileMenu}
                      />
                    </>
