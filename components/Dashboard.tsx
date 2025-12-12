@@ -1,5 +1,4 @@
 
-
 import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { CAR, Role, CARStatus, AuditTrailEntry, AuditAction, DEPARTMENTS } from '../types';
@@ -34,15 +33,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   const { department: paramDept } = useParams<{ department: string }>();
   const navigate = useNavigate();
 
-  // --- NEW FILTERS ---
+  // --- FILTERS ---
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'OPEN' | 'CLOSED' | 'ALL'>('OPEN');
+  
+  // Unified Status Filter
+  // Options: 'Active' (All open), 'CLOSED', 'All', or specific CARStatus enum value
+  const [selectedStatus, setSelectedStatus] = useState<string>('Active');
 
   // State for QA Closed View Filter
   const [selectedFilterDept, setSelectedFilterDept] = useState<string>('');
 
   // State for Section All View Filters
-  const [filterStatus, setFilterStatus] = useState<string>('All');
   const [filterYear, setFilterYear] = useState<string>('All');
   const [availableYears, setAvailableYears] = useState<string[]>([]);
 
@@ -77,14 +78,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   // PDF Loading State
   const [pdfLoadingCarId, setPdfLoadingCarId] = useState<string | null>(null);
 
-  // Set initial filter based on view mode (if strict)
+  // Set initial filter based on view mode
   useEffect(() => {
-    if (viewMode === 'closed') {
-        setStatusFilter('CLOSED');
-    } else if (viewMode === 'active' || viewMode === 'monitor') {
-        setStatusFilter('OPEN');
-    } else if (viewMode === 'all') {
-        setStatusFilter('ALL');
+    // If it's a strictly active dashboard view, default to Active.
+    // Otherwise (CARs Lists, Monitor lists), default to CLOSED as requested.
+    if (viewMode === 'active' || viewMode === 'pending-plans') {
+        setSelectedStatus('Active');
+    } else {
+        setSelectedStatus('CLOSED');
     }
   }, [viewMode]);
 
@@ -121,9 +122,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
         c.status === CARStatus.RETURNED
       );
     } 
-    // Note: We removed the strict 'active' vs 'closed' filter here to allow the UI toggle to work
-    // provided the user has permissions. 
-
+    
     // 4. Apply Source Filter (For IQA)
     if (userRole === Role.QA && filterSource !== 'All') {
         allCars = allCars.filter(c => c.source === filterSource);
@@ -154,11 +153,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   // --- CLIENT SIDE FILTERING ---
   const displayedCars = useMemo(() => {
     return cars.filter(car => {
-        // 1. Status Filter (Open / Closed / All)
-        if (statusFilter === 'OPEN') {
+        // 1. Status Filter
+        if (selectedStatus === 'Active') {
             if (car.status === CARStatus.CLOSED) return false;
-        } else if (statusFilter === 'CLOSED') {
+        } else if (selectedStatus === 'CLOSED') {
             if (car.status !== CARStatus.CLOSED) return false;
+        } else if (selectedStatus !== 'All') {
+            // Specific status selection
+            if (car.status !== selectedStatus) return false;
         }
 
         // 2. Search Filter
@@ -174,13 +176,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
         // 3. Section All View specific filters
         if (isSectionAllView) {
-            if (filterStatus !== 'All' && car.status !== filterStatus) return false;
             if (filterYear !== 'All' && !car.dateIssued.startsWith(filterYear)) return false;
         }
 
         return true;
     });
-  }, [cars, statusFilter, searchTerm, isSectionAllView, filterStatus, filterYear]);
+  }, [cars, selectedStatus, searchTerm, isSectionAllView, filterYear]);
 
 
   const getStatusColor = (status: string) => {
@@ -454,6 +455,27 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
           {/* Additional Role-Based Filters */}
           <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-gray-100">
+            
+            {/* Unified Status Filter (For All Roles) */}
+            <div className="flex items-center gap-2">
+               <Filter size={16} className="text-gray-600"/>
+               <span className="text-xs font-bold text-gray-500 uppercase">Status:</span>
+               <select 
+                   value={selectedStatus} 
+                   onChange={(e) => setSelectedStatus(e.target.value)}
+                   className="border border-gray-300 rounded px-2 py-1 text-sm bg-white text-gray-900 focus:ring-1 focus:ring-green-500 outline-none"
+               >
+                   <option value="Active">Active (Non-Closed)</option>
+                   <option value="All">All Records</option>
+                   <option value="CLOSED">CLOSED</option>
+                   <optgroup label="Specific Status">
+                      {Object.values(CARStatus).filter(s => s !== 'CLOSED').map(s => (
+                          <option key={s} value={s}>{getStatusLabel(s)}</option>
+                      ))}
+                   </optgroup>
+               </select>
+            </div>
+
             {/* QA Source Filter */}
             {userRole === Role.QA && (
                <div className="flex items-center gap-2">
@@ -494,23 +516,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                </div>
             )}
             
-            {/* Section All View Filters */}
+            {/* Section All View Year Filter */}
             {isSectionAllView && (
-               <>
-                 <div className="flex items-center gap-2">
-                    <Filter size={16} className="text-gray-600"/>
-                    <span className="text-xs font-bold text-gray-500 uppercase">Status:</span>
-                    <select 
-                        value={filterStatus} 
-                        onChange={(e) => setFilterStatus(e.target.value)}
-                        className="border border-gray-300 rounded px-2 py-1 text-sm bg-white text-gray-900"
-                    >
-                        <option value="All">All</option>
-                        {Object.values(CARStatus).map(s => (
-                            <option key={s} value={s}>{getStatusLabel(s)}</option>
-                        ))}
-                    </select>
-                 </div>
                  <div className="flex items-center gap-2">
                     <Filter size={16} className="text-gray-600"/>
                     <span className="text-xs font-bold text-gray-500 uppercase">Year:</span>
@@ -525,7 +532,6 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                         ))}
                     </select>
                  </div>
-               </>
             )}
           </div>
       </div>
