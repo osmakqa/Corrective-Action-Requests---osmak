@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import { CAR, CARStatus, RegistryEntry, Role, AuditAction, AuditTrailEntry, RCAChain, RootCause, ParetoItem } from '../types';
+import { backupToSheet } from './sheetService';
 
 // --- Supabase Configuration ---
 const supabaseUrl = 'https://mrhqjzblspjhdlisnyno.supabase.co';
@@ -236,7 +237,12 @@ export const createCAR = async (data: Partial<CAR>): Promise<CAR | null> => {
     return null;
   }
   
-  return mapCarFromDB(inserted);
+  const createdCar = mapCarFromDB(inserted);
+  
+  // Trigger Backup to Google Sheets
+  backupToSheet(createdCar);
+  
+  return createdCar;
 };
 
 export const updateCAR = async (car: CAR): Promise<void> => {
@@ -251,6 +257,9 @@ export const updateCAR = async (car: CAR): Promise<void> => {
     console.error('Error updating CAR details:', JSON.stringify(error, null, 2));
     return;
   }
+  
+  // Trigger Backup to Google Sheets
+  backupToSheet(car);
 };
 
 export const deleteCAR = async (id: string, userName: string, userRole: Role): Promise<void> => {

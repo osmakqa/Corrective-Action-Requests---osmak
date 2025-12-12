@@ -1,11 +1,11 @@
 
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { CAR, Role, CARStatus, AuditTrailEntry, AuditAction, DEPARTMENTS } from '../types';
 import { fetchCARs, deleteCAR, fetchAuditTrailForCAR, fetchCARById } from '../services/store';
 import { generateCARPdf } from '../services/pdfGenerator';
-import { ChevronRight, Download, Activity, CheckCircle, AlertOctagon, Clock, Eye, UserCheck, Trash2, Pencil, X, Loader2, History, PlusCircle, MessageSquare, XCircle, ShieldCheck, AlertCircle, Archive, HelpCircle, Filter, RotateCcw, PlayCircle } from 'lucide-react';
+import { ChevronRight, Download, Activity, CheckCircle, AlertOctagon, Clock, Eye, UserCheck, Trash2, Pencil, X, Loader2, History, PlusCircle, MessageSquare, XCircle, ShieldCheck, AlertCircle, Archive, HelpCircle, Filter, RotateCcw, PlayCircle, Search, ListFilter } from 'lucide-react';
 
 interface DashboardProps {
   userRole: Role;
@@ -33,6 +33,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   const [loading, setLoading] = useState(true);
   const { department: paramDept } = useParams<{ department: string }>();
   const navigate = useNavigate();
+
+  // --- NEW FILTERS ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'OPEN' | 'CLOSED' | 'ALL'>('OPEN');
 
   // State for QA Closed View Filter
   const [selectedFilterDept, setSelectedFilterDept] = useState<string>('');
@@ -73,17 +77,19 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   // PDF Loading State
   const [pdfLoadingCarId, setPdfLoadingCarId] = useState<string | null>(null);
 
+  // Set initial filter based on view mode (if strict)
+  useEffect(() => {
+    if (viewMode === 'closed') {
+        setStatusFilter('CLOSED');
+    } else if (viewMode === 'active' || viewMode === 'monitor') {
+        setStatusFilter('OPEN');
+    } else if (viewMode === 'all') {
+        setStatusFilter('ALL');
+    }
+  }, [viewMode]);
 
   const loadData = async () => {
     setLoading(true);
-
-    // QA Closed View Specific Logic:
-    // If we are in QA Closed View, the list should be empty until a filter is selected.
-    if (isQAClosedView && !selectedFilterDept) {
-        setCars([]);
-        setLoading(false);
-        return;
-    }
 
     let allCars = await fetchCARs();
     
@@ -107,46 +113,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
        allCars = allCars.filter(c => c.issuedBy === userName);
     }
 
-    // 3. Filter by View Mode
-    if (viewMode === 'closed') {
-      allCars = allCars.filter(c => c.status === CARStatus.CLOSED);
-    } else if (userRole === Role.DQMR && viewMode === 'active') {
-      // DQMR's "active" dashboard is the validation queue
-      allCars = allCars.filter(c => c.status === CARStatus.VERIFIED || c.status === CARStatus.INEFFECTIVE);
-    } else if (userRole === Role.SECTION && viewMode === 'active') {
-      // Section Dashboard: Only Actionable items (Open, Returned, For Implementation)
-      allCars = allCars.filter(c => 
-        c.status === CARStatus.OPEN || 
-        c.status === CARStatus.RETURNED || 
-        c.status === CARStatus.ACCEPTED // ACCEPTED displays as "FOR IMPLEMENTATION"
-      );
-    } else if (userRole === Role.SECTION && viewMode === 'pending-plans') {
+    // 3. Filter by View Mode (Strict filters that shouldn't be overridden by the UI toggle)
+    if (viewMode === 'pending-plans') {
       // Pending Action Plans: Open or Returned
       allCars = allCars.filter(c => 
         c.status === CARStatus.OPEN || 
         c.status === CARStatus.RETURNED
       );
-    } else if (userRole === Role.SECTION && viewMode === 'all') {
-      // Section All View: Apply Status and Year Filters
-      // First, get all years for the dropdown
-      const years = Array.from(new Set(allCars.map(c => new Date(c.dateIssued).getFullYear().toString()))).sort().reverse();
-      setAvailableYears(years);
-
-      // Apply Filters
-      if (filterStatus !== 'All') {
-         allCars = allCars.filter(c => c.status === filterStatus);
-      }
-      if (filterYear !== 'All') {
-         allCars = allCars.filter(c => c.dateIssued.startsWith(filterYear));
-      }
-    } else {
-      // For QA roles (and Monitor mode), "active" means anything not closed.
-      allCars = allCars.filter(c => c.status !== CARStatus.CLOSED);
-    }
+    } 
+    // Note: We removed the strict 'active' vs 'closed' filter here to allow the UI toggle to work
+    // provided the user has permissions. 
 
     // 4. Apply Source Filter (For IQA)
     if (userRole === Role.QA && filterSource !== 'All') {
         allCars = allCars.filter(c => c.source === filterSource);
+    }
+    
+    // Section All View: Year filter logic setup
+    if (userRole === Role.SECTION && viewMode === 'all') {
+      const years = Array.from(new Set(allCars.map(c => new Date(c.dateIssued).getFullYear().toString()))).sort().reverse();
+      setAvailableYears(years);
     }
 
     // Sort: Overdue first, then by Due Date
@@ -162,7 +148,40 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
   useEffect(() => {
     loadData();
-  }, [userRole, targetDepartment, viewMode, userName, isSpecificQA, selectedFilterDept, filterStatus, filterYear, filterSource]);
+  }, [userRole, targetDepartment, viewMode, userName, isSpecificQA, selectedFilterDept, filterSource]);
+
+
+  // --- CLIENT SIDE FILTERING ---
+  const displayedCars = useMemo(() => {
+    return cars.filter(car => {
+        // 1. Status Filter (Open / Closed / All)
+        if (statusFilter === 'OPEN') {
+            if (car.status === CARStatus.CLOSED) return false;
+        } else if (statusFilter === 'CLOSED') {
+            if (car.status !== CARStatus.CLOSED) return false;
+        }
+
+        // 2. Search Filter
+        if (searchTerm) {
+            const term = searchTerm.toLowerCase();
+            const matchesRef = car.refNo?.toLowerCase().includes(term);
+            const matchesCarNo = car.carNo?.toLowerCase().includes(term);
+            const matchesDept = car.department?.toLowerCase().includes(term);
+            const matchesProblem = car.description?.statement?.toLowerCase().includes(term);
+            
+            if (!matchesRef && !matchesCarNo && !matchesDept && !matchesProblem) return false;
+        }
+
+        // 3. Section All View specific filters
+        if (isSectionAllView) {
+            if (filterStatus !== 'All' && car.status !== filterStatus) return false;
+            if (filterYear !== 'All' && !car.dateIssued.startsWith(filterYear)) return false;
+        }
+
+        return true;
+    });
+  }, [cars, statusFilter, searchTerm, isSectionAllView, filterStatus, filterYear]);
+
 
   const getStatusColor = (status: string) => {
     switch(status) {
@@ -195,7 +214,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
   const exportToCSV = () => {
     const headers = ['Ref No', 'Department', 'Status', 'Issued By', 'Due Date', 'Days Remaining'];
-    const rows = cars.map(c => [
+    const rows = displayedCars.map(c => [
       c.refNo,
       c.department,
       getStatusLabel(c.status),
@@ -277,8 +296,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
   };
 
   // Metrics
-  const totalCount = cars.length;
-  const overdueCount = cars.filter(c => getDaysRemaining(c.dueDate) < 0).length;
+  const totalCount = displayedCars.length;
+  const overdueCount = displayedCars.filter(c => getDaysRemaining(c.dueDate) < 0).length;
 
   const isDQMRActiveView = userRole === Role.DQMR && viewMode === 'active';
 
@@ -416,21 +435,80 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
         )}
       </div>
 
-      {/* QA Filter Section */}
-      {userRole === Role.QA && (
-         <div className="bg-white p-4 rounded-xl shadow border border-gray-200 mb-6 flex flex-wrap items-center gap-6">
-            <div className="bg-gray-100 p-2 rounded-full">
-               <Filter size={20} className="text-gray-600"/>
-            </div>
+      {/* FILTER BAR: Search and Status Toggle */}
+      <div className="bg-white p-4 rounded-xl shadow border border-gray-200 mb-6 space-y-4">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+             
+             {/* Search */}
+             <div className="relative w-full lg:w-96">
+                <Search className="absolute left-3 top-3 text-gray-600" size={18}/>
+                <input 
+                   type="text" 
+                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm bg-white text-gray-900"
+                   placeholder="Search Ref No, CAR No, Dept, or Issue..."
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                />
+             </div>
 
-            {/* Department Filter (Only for Closed View) */}
+             {/* Status Toggle (Only if not in strictly filtered modes like pending-plans) */}
+             {viewMode !== 'pending-plans' && (
+                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg border border-gray-200">
+                    <button 
+                        onClick={() => setStatusFilter('OPEN')}
+                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${statusFilter === 'OPEN' ? 'bg-white text-green-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Active / Open
+                    </button>
+                    <button 
+                        onClick={() => setStatusFilter('CLOSED')}
+                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${statusFilter === 'CLOSED' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        Closed
+                    </button>
+                    <button 
+                        onClick={() => setStatusFilter('ALL')}
+                        className={`px-4 py-1.5 rounded-md text-sm font-bold transition-all ${statusFilter === 'ALL' ? 'bg-white text-blue-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                        All Records
+                    </button>
+                </div>
+             )}
+          </div>
+
+          {/* Additional Role-Based Filters */}
+          <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-gray-100">
+            {/* QA Source Filter */}
+            {userRole === Role.QA && (
+               <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-gray-600"/>
+                  <span className="text-xs font-bold text-gray-500 uppercase">Source:</span>
+                  <select 
+                    value={filterSource} 
+                    onChange={(e) => setFilterSource(e.target.value)}
+                    className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-green-500 outline-none bg-white text-gray-900"
+                  >
+                     <option value="All">All Sources</option>
+                     <option value="Internal Audit">Internal Audit</option>
+                     <option value="KPI">KPI</option>
+                     <option value="DOH">DOH</option>
+                     <option value="IPC">IPC</option>
+                     <option value="PhilHealth">PhilHealth</option>
+                     <option value="Incident Management System">Incident Management System</option>
+                     <option value="Others">Others</option>
+                  </select>
+               </div>
+            )}
+
+            {/* QA Closed Dept Filter */}
             {isQAClosedView && (
-               <div className="flex-1 min-w-[200px]">
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filter by Department</label>
+               <div className="flex items-center gap-2">
+                  <Filter size={16} className="text-gray-600"/>
+                  <span className="text-xs font-bold text-gray-500 uppercase">Department:</span>
                   <select 
                     value={selectedFilterDept} 
                     onChange={(e) => setSelectedFilterDept(e.target.value)}
-                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
+                    className="border border-gray-300 rounded px-2 py-1 text-sm focus:ring-1 focus:ring-green-500 outline-none bg-white text-gray-900 min-w-[200px]"
                   >
                      <option value="">-- Select Department --</option>
                      {DEPARTMENTS.map(d => (
@@ -439,71 +517,42 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                   </select>
                </div>
             )}
-
-            {/* Source Filter (ForAll QA Views) */}
-            <div className="flex-1 min-w-[200px]">
-               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filter by Source</label>
-               <select 
-                 value={filterSource} 
-                 onChange={(e) => setFilterSource(e.target.value)}
-                 className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
-               >
-                  <option value="All">All Sources</option>
-                  <option value="Internal Audit">Internal Audit</option>
-                  <option value="KPI">KPI</option>
-                  <option value="DOH">DOH</option>
-                  <option value="IPC">IPC</option>
-                  <option value="PhilHealth">PhilHealth</option>
-                  <option value="Incident Management System">Incident Management System</option>
-                  <option value="Others">Others</option>
-               </select>
-            </div>
             
-            {isQAClosedView && !selectedFilterDept && (
-               <div className="text-sm text-orange-600 italic flex items-center gap-1 w-full mt-2">
-                  <AlertCircle size={14} /> Please select a department to view records.
-               </div>
+            {/* Section All View Filters */}
+            {isSectionAllView && (
+               <>
+                 <div className="flex items-center gap-2">
+                    <Filter size={16} className="text-gray-600"/>
+                    <span className="text-xs font-bold text-gray-500 uppercase">Status:</span>
+                    <select 
+                        value={filterStatus} 
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm bg-white text-gray-900"
+                    >
+                        <option value="All">All</option>
+                        {Object.values(CARStatus).map(s => (
+                            <option key={s} value={s}>{getStatusLabel(s)}</option>
+                        ))}
+                    </select>
+                 </div>
+                 <div className="flex items-center gap-2">
+                    <Filter size={16} className="text-gray-600"/>
+                    <span className="text-xs font-bold text-gray-500 uppercase">Year:</span>
+                    <select 
+                        value={filterYear} 
+                        onChange={(e) => setFilterYear(e.target.value)}
+                        className="border border-gray-300 rounded px-2 py-1 text-sm bg-white text-gray-900"
+                    >
+                        <option value="All">All</option>
+                        {availableYears.map(y => (
+                            <option key={y} value={y}>{y}</option>
+                        ))}
+                    </select>
+                 </div>
+               </>
             )}
-         </div>
-      )}
-
-
-      {/* Section "All CARs" Filter Section */}
-      {isSectionAllView && (
-        <div className="bg-white p-4 rounded-xl shadow border border-gray-200 mb-6 flex flex-wrap items-center gap-6">
-           <div className="bg-gray-100 p-2 rounded-full">
-              <Filter size={20} className="text-gray-600"/>
-           </div>
-           
-           <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filter by Status</label>
-              <select 
-                value={filterStatus} 
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
-              >
-                 <option value="All">All Statuses</option>
-                 {Object.values(CARStatus).map(s => (
-                   <option key={s} value={s}>{getStatusLabel(s)}</option>
-                 ))}
-              </select>
-           </div>
-
-           <div className="flex-1 min-w-[200px]">
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Filter by Year</label>
-              <select 
-                value={filterYear} 
-                onChange={(e) => setFilterYear(e.target.value)}
-                className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
-              >
-                 <option value="All">All Years</option>
-                 {availableYears.map(y => (
-                   <option key={y} value={y}>{y}</option>
-                 ))}
-              </select>
-           </div>
-        </div>
-      )}
+          </div>
+      </div>
 
       {/* Metrics Cards (Only show if we have data) */}
       {viewMode !== 'closed' && viewMode !== 'all' && (
@@ -559,7 +608,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {cars.map(car => {
+              {displayedCars.map(car => {
                 const daysLeft = getDaysRemaining(car.dueDate);
                 let daysColor = "text-gray-600";
                 if (car.status !== CARStatus.CLOSED && car.status !== CARStatus.VERIFIED && car.status !== CARStatus.INEFFECTIVE) {
@@ -634,7 +683,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                   </tr>
                 );
               })}
-              {cars.length === 0 && (
+              {displayedCars.length === 0 && (
                  <tr>
                    <td colSpan={7} className="p-12 text-center text-gray-500">
                       <div className="flex flex-col items-center justify-center">
@@ -646,7 +695,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                          ) : (
                             <>
                               <CheckCircle size={48} className="text-gray-300 mb-2"/>
-                              <p>No records found in this view.</p>
+                              <p>No records found matching your filters.</p>
                             </>
                          )}
                       </div>

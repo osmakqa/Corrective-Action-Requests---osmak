@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CAR, Role, CARStatus, RemedialAction, CorrectiveAction, DEPARTMENTS, RCAData, ISO_CLAUSES, AuditTrailEntry, AuditAction, RootCause } from '../types';
@@ -541,12 +542,13 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
     
     // VISIBILITY IMPROVEMENT: 
     // If editable, use bright white bg and ring on focus.
-    // If disabled, use flat gray bg and gray text to push it to background.
+    // If disabled, we still use white bg but gray text to indicate status while maintaining legibility
     if (editable) {
         const errorClass = errors[field] ? 'border-red-500 bg-red-50 focus:ring-red-500' : 'border-gray-400 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500';
         return `${baseClass} ${errorClass} text-gray-900 font-medium placeholder-gray-400`;
     } else {
-        return `${baseClass} border-transparent bg-gray-100 text-gray-500 cursor-not-allowed`;
+        // Updated: White background with dark text for read-only fields per user request
+        return `${baseClass} border-gray-200 bg-white text-gray-900 cursor-not-allowed opacity-90`;
     }
   };
   
@@ -665,7 +667,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                    <input 
                      type="text" 
                      placeholder="Search clauses or content..." 
-                     className="w-full border border-gray-300 pl-10 pr-4 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none shadow-sm"
+                     className="w-full border border-gray-300 pl-10 pr-4 py-2.5 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none shadow-sm bg-white text-gray-900"
                      value={isoSearch}
                      onChange={e => setIsoSearch(e.target.value)}
                      autoFocus
@@ -892,7 +894,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
              <div>
                 <FieldLabel label="Issued By" editable={canEditHeader} required={isNew} />
                 <div className="relative">
-                   <User size={16} className="absolute left-3 top-3.5 text-gray-400"/>
+                   <User size={16} className="absolute left-3 top-3.5 text-gray-600"/>
                    <input disabled={!canEditHeader} value={car.issuedBy} onChange={(e) => handleUpdate('issuedBy', e.target.value)} className={`${getInputClass('issuedBy', canEditHeader)} pl-10`} />
                 </div>
                 {isNew && errors.issuedBy && <p className="text-red-500 text-xs mt-1 font-medium">{errors.issuedBy}</p>}
@@ -906,7 +908,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                   className={getDateInputClass('dateIssued', canEditHeader)} 
                 />
                  {isNew && errors.dateIssued && <p className="text-red-500 text-xs mt-1 font-medium">{errors.dateIssued}</p>}
-                <p className="text-xs text-gray-500 mt-2 flex items-center gap-1"><Clock size={12}/> Target Response: {car.dueDate}</p>
+                <p className="text-xs text-gray-700 mt-2 flex items-center gap-1"><Clock size={12}/> Target Response: {car.dueDate}</p>
              </div>
           </div>
         </div>

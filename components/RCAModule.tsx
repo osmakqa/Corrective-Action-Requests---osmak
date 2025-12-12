@@ -3,6 +3,8 @@
 
 
 
+
+
 import React, { useState, useEffect, useRef } from 'react';
 import { RCAData, RCAChain, ParetoItem } from '../types';
 import { Plus, Trash2, ArrowRight, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch } from 'lucide-react';
@@ -305,7 +307,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                            {!isReadOnly && (
                               <button 
                                  onClick={() => removeChain(chain.id)} 
-                                 className="absolute right-3 top-3 text-gray-300 hover:text-red-500 transition-colors p-1"
+                                 className="absolute right-3 top-3 text-gray-400 hover:text-red-500 transition-colors p-1"
                                  title="Delete Chain"
                               >
                                  <Trash2 size={16}/>
@@ -318,12 +320,12 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                                     {/* Arrow */}
                                     {whyIdx > 0 && (
                                        <div className="flex items-center justify-center pt-2">
-                                          <ArrowRight size={16} className="text-gray-300" />
+                                          <ArrowRight size={16} className="text-gray-400" />
                                        </div>
                                     )}
 
                                     <div className="flex-1 min-w-[200px] max-w-[300px] flex flex-col gap-1">
-                                       <span className="text-[10px] font-bold uppercase text-gray-400 pl-1">
+                                       <span className="text-[10px] font-bold uppercase text-gray-500 pl-1">
                                           {`Why? (${whyIdx + 1})`}
                                        </span>
                                        <div className="relative">
@@ -331,7 +333,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                                              disabled={isReadOnly}
                                              value={why}
                                              onChange={(e) => updateWhy(chain.id, whyIdx, e.target.value)}
-                                             className="w-full p-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white border-gray-300 text-gray-800"
+                                             className="w-full p-2.5 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white border-gray-300 text-gray-900"
                                              placeholder="Why?"
                                           />
                                           {!isReadOnly && (
@@ -340,7 +342,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                                                    if (chain.whys.length === 1) removeChain(chain.id);
                                                    else removeWhy(chain.id, whyIdx);
                                                 }}
-                                                className="absolute right-2 top-2.5 text-gray-300 hover:text-red-500 p-0.5"
+                                                className="absolute right-2 top-2.5 text-gray-400 hover:text-red-500 p-0.5"
                                              >
                                                 <X size={12}/>
                                              </button>

@@ -1,6 +1,8 @@
 
 
 
+
+
 import React, { useState } from 'react';
 import { Role, DEPARTMENTS, NURSING_UNITS, CLINICAL_DEPARTMENTS, QA_PERSONNEL } from '../types';
 import { ChevronDown, Eye, EyeOff, BookOpen, CheckCircle, X, FileText, Activity, ShieldCheck, Archive, AlertTriangle, PlayCircle, HelpCircle, Monitor, BarChart2, AlertOctagon } from 'lucide-react';
@@ -535,7 +537,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                               {sectionCategory === 'Nursing' && NURSING_UNITS.map(d => <option key={d} value={d}>{d}</option>)}
                               {sectionCategory === 'Clinical' && CLINICAL_DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
-                            <ChevronDown className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={18} />
+                            <ChevronDown className="absolute right-3 top-3.5 text-gray-600 pointer-events-none" size={18} />
                         </div>
                     ) : (
                         <div className="w-full border border-gray-300 rounded-lg p-3 text-gray-900 bg-gray-100 text-sm font-medium select-none">
@@ -557,7 +559,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                           <option value="">Select Your Name...</option>
                           {QA_PERSONNEL.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
-                        <ChevronDown className="absolute right-3 top-3.5 text-gray-400 pointer-events-none" size={18} />
+                        <ChevronDown className="absolute right-3 top-3.5 text-gray-600 pointer-events-none" size={18} />
                     </div>
                  </div>
                )}
@@ -575,7 +577,7 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
                       />
                       <button 
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-3 text-gray-400 hover:text-gray-600 focus:outline-none p-1 rounded-full hover:bg-gray-100 transition-colors"
+                        className="absolute right-3 top-3 text-gray-600 hover:text-gray-800 focus:outline-none p-1 rounded-full hover:bg-gray-100 transition-colors"
                         tabIndex={-1}
                       >
                         {showPassword ? <EyeOff size={18}/> : <Eye size={18}/>}
