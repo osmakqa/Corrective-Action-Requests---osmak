@@ -1,5 +1,3 @@
-
-
 export enum Role {
   QA = 'QA/IQA',
   SECTION = 'SECTION/AUDITEE',
@@ -9,6 +7,7 @@ export enum Role {
 export const DEPARTMENTS = [
   "Admitting Section",
   "Ambulatory Care Medicine Complex",
+  "Billing Section",
   "Cardiovascular Diagnostics",
   "Cashier Management",
   "Claims",
