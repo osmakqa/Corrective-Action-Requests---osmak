@@ -13,11 +13,19 @@ interface CARFormProps {
   userName?: string;
 }
 
-// Helper moved outside to avoid initialization errors
+// Helper updated with safety checks to prevent crashes on invalid date strings
 const addDays = (dateStr: string, days: number): string => {
+  if (!dateStr || dateStr.length < 10) return dateStr; // Don't try to calculate if string is incomplete
   const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr; // Return original string if date is invalid
+  
   date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  
+  try {
+    return date.toISOString().split('T')[0];
+  } catch (e) {
+    return dateStr; // Fallback to original string if ISO conversion fails
+  }
 };
 
 export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
@@ -161,7 +169,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
     if (!car) return false;
     const newErrors: Record<string, string> = {};
 
-    if (!car.refNo?.trim()) newErrors.refNo = 'Reference Number is required.';
+    // Ref No and CAR No are no longer required per user request
     if (!car.department?.trim()) newErrors.department = 'Department is required.';
     
     // ISO Clause validation only if source is Internal Audit or KPI
@@ -169,7 +177,6 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
         newErrors.isoClause = 'ISO Clause is required.';
     }
 
-    if (!car.carNo?.trim()) newErrors.carNo = 'CAR Number is required.';
     if (!car.source?.trim()) newErrors.source = 'Source is required.';
     if (!car.dateOfAudit) newErrors.dateOfAudit = 'Date of Audit is required.';
     if (!car.description.statement?.trim()) newErrors.statement = 'Statement (Problem) is required.';
@@ -209,7 +216,11 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
       const updated = { ...prev, [field]: value };
       // Auto calc due date ONLY on issue date change for NEW or regular edit
       if (field === 'dateIssued' && !isSuperUser) {
-        updated.dueDate = addDays(value, 5);
+        const calculatedDueDate = addDays(value, 5);
+        // Only update dueDate if addDays successfully returned a potential date string (length 10)
+        if (calculatedDueDate.length === 10) {
+          updated.dueDate = calculatedDueDate;
+        }
       }
       return updated;
     });
@@ -730,7 +741,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
          </div>
          <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
             <div className="col-span-1">
-               <FieldLabel label="Ref No" editable={canEditHeader} required={isNew} />
+               <FieldLabel label="Ref No" editable={canEditHeader} required={false} />
                <input disabled={!canEditHeader} value={car.refNo} onChange={(e) => handleUpdate('refNo', e.target.value)} className={getInputClass('refNo', canEditHeader)} placeholder="e.g. 2024-001" />
             </div>
             <div className="col-span-1">
@@ -742,10 +753,17 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
             </div>
             <div className="col-span-1">
                <FieldLabel label="ISO Clause" editable={canEditHeader && isIsoApplicable} required={isNew && isIsoApplicable} />
-               <input disabled={!canEditHeader || !isIsoApplicable} value={car.isoClause} onChange={(e) => handleUpdate('isoClause', e.target.value)} className={getInputClass('isoClause', canEditHeader && isIsoApplicable)} placeholder={!isIsoApplicable ? "N/A" : ""} />
+               <input 
+                  readOnly={!isSuperUser}
+                  disabled={!canEditHeader || !isIsoApplicable} 
+                  value={car.isoClause} 
+                  onChange={(e) => handleUpdate('isoClause', e.target.value)} 
+                  className={getInputClass('isoClause', isSuperUser && isIsoApplicable)} 
+                  placeholder={!isIsoApplicable ? "N/A" : "Select from ISO Guide..."}
+               />
             </div>
             <div className="col-span-1">
-               <FieldLabel label="CAR No" editable={canEditHeader} required={isNew} />
+               <FieldLabel label="CAR No" editable={canEditHeader} required={false} />
                <input disabled={!canEditHeader} value={car.carNo} onChange={(e) => handleUpdate('carNo', e.target.value)} className={getInputClass('carNo', canEditHeader)} />
             </div>
             <div className="col-span-2">
