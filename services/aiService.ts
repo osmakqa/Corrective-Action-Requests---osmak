@@ -1,9 +1,4 @@
 
-
-
-
-
-
 import { GoogleGenAI } from "@google/genai";
 import { RCAChain } from '../types';
 
@@ -33,8 +28,9 @@ export const generateRemedialSuggestions = async (problemStatement: string, evid
       Output format: A raw JSON array of strings. Example: ["Fix the broken lock", "Dispose of contaminated product"]
     `;
 
+    // @fix: Updated model to gemini-3-flash-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 
@@ -62,8 +58,9 @@ export const generateCorrectiveSuggestions = async (rootCauses: string[], proble
       Output format: A raw JSON array of strings.
     `;
 
+    // @fix: Updated model to gemini-3-flash-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 
@@ -94,8 +91,9 @@ export const generateRCAChains = async (problemStatement: string): Promise<strin
       ]
     `;
 
+    // @fix: Updated model to gemini-3-flash-preview
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-3-flash-preview',
       contents: prompt,
     });
 

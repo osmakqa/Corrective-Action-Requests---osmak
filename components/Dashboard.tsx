@@ -111,7 +111,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
     
     // 2. Filter by Specific QA (if not monitoring and not Main QA and NOT in closed view)
     if (!targetDepartment && isSpecificQA && viewMode === 'active') {
-       allCars = allCars.filter(c => c.issuedBy === userName);
+       // Support multi-auditor search
+       allCars = allCars.filter(c => {
+         const auditors = c.issuedBy ? c.issuedBy.split(' & ') : [];
+         return auditors.includes(userName || '');
+       });
     }
 
     // 3. Filter by View Mode (Strict filters that shouldn't be overridden by the UI toggle)
@@ -601,7 +605,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
 
                 // Edit/Delete Permissions: Only QA, and only their own CARs OR Main QA can see all
                 // AND ONLY IF STATUS IS OPEN (added per request)
-                const showEditDelete = userRole === Role.QA && !isMonitorMode && (isMainQA || car.issuedBy === userName) && car.status === CARStatus.OPEN;
+                const auditors = car.issuedBy ? car.issuedBy.split(' & ') : [];
+                const isAuditor = auditors.includes(userName || '');
+                const showEditDelete = userRole === Role.QA && !isMonitorMode && (isMainQA || isAuditor) && car.status === CARStatus.OPEN;
 
                 return (
                   <tr 
@@ -612,7 +618,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                     <td className="p-4 text-sm font-semibold text-gray-900">{car.refNo}</td>
                     <td className="p-4 text-sm text-gray-600">{car.department}</td>
                     <td className="p-4 text-sm text-gray-600 flex items-center gap-1">
-                       <UserCheck size={14} className="text-gray-400"/> {car.issuedBy.split(' ')[0]}
+                       <UserCheck size={14} className="text-gray-400"/> {car.issuedBy?.split(' & ')[0]?.split(' ')[0]}
                     </td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(car.status)}`}>

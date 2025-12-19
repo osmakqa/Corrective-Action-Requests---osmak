@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
-import { CAR, Role, CARStatus, RemedialAction, CorrectiveAction, DEPARTMENTS, RCAData, ISO_CLAUSES, AuditTrailEntry, AuditAction, RootCause } from '../types';
+import { CAR, Role, CARStatus, RemedialAction, CorrectiveAction, DEPARTMENTS, RCAData, ISO_CLAUSES, AuditTrailEntry, AuditAction, RootCause, QA_PERSONNEL } from '../types';
 import { fetchCARById, updateCAR, createCAR, updateRegistryOnSubmission, logAuditEvent, fetchAuditTrailForCAR } from '../services/store';
 import { generateCARPdf } from '../services/pdfGenerator';
 import { generateRemedialSuggestions, generateCorrectiveSuggestions } from '../services/aiService';
@@ -175,7 +174,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
     if (!car.description.statement?.trim()) newErrors.statement = 'Statement (Problem) is required.';
     if (!car.description.evidence?.trim()) newErrors.evidence = 'Evidence is required.';
     if (!car.description.reference?.trim()) newErrors.reference = 'Reference is required.';
-    if (!car.issuedBy?.trim()) newErrors.issuedBy = 'Issued By is required.';
+    if (!car.issuedBy?.trim()) newErrors.issuedBy = 'At least one Auditor is required.';
     if (!car.dateIssued) newErrors.dateIssued = 'Date Issued is required.';
 
     setErrors(newErrors);
@@ -217,6 +216,19 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
         return newErrors;
       });
     }
+  };
+
+  // Dual IQA Logic
+  const auditors = car.issuedBy ? car.issuedBy.split(' & ') : ['', ''];
+  const auditor1 = auditors[0] || '';
+  const auditor2 = auditors[1] || '';
+
+  const handleAuditorChange = (index: number, name: string) => {
+    const current = car.issuedBy ? car.issuedBy.split(' & ') : ['', ''];
+    current[index] = name;
+    // Filter out empty strings and join
+    const newValue = current.filter(n => n.trim() !== '').join(' & ');
+    handleUpdate('issuedBy', newValue);
   };
 
   const handleNCUpdate = (field: 'statement' | 'evidence' | 'reference', value: string) => {
@@ -528,6 +540,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
   // Section can mark implemented if QA has accepted. QA can also do this if needed.
   const canImplement = !isReadOnlyView && (userRole === Role.SECTION || userRole === Role.QA) && car.status === CARStatus.ACCEPTED;
   // Section can undo implementation if status is FOR_VERIFICATION. QA can also do this.
+  // @fix: Changed CAR_FOR_VERIFICATION to CARStatus.FOR_VERIFICATION
   const canUndoImplement = !isReadOnlyView && (userRole === Role.SECTION || userRole === Role.QA) && car.status === CARStatus.FOR_VERIFICATION;
 
   const canValidate = !isReadOnlyView && userRole === Role.DQMR && (car.status === CARStatus.VERIFIED || car.status === CARStatus.INEFFECTIVE);
@@ -892,10 +905,34 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
           
           <div className="grid grid-cols-2 gap-6 pt-4 border-t border-gray-100">
              <div>
-                <FieldLabel label="Issued By" editable={canEditHeader} required={isNew} />
-                <div className="relative">
-                   <User size={16} className="absolute left-3 top-3.5 text-gray-600"/>
-                   <input disabled={!canEditHeader} value={car.issuedBy} onChange={(e) => handleUpdate('issuedBy', e.target.value)} className={`${getInputClass('issuedBy', canEditHeader)} pl-10`} />
+                <FieldLabel label="Issued By (Up to 2 IQA)" editable={canEditHeader} required={isNew} />
+                <div className="space-y-2">
+                   <div className="relative">
+                      <User size={16} className="absolute left-3 top-3.5 text-gray-600"/>
+                      <select 
+                        disabled={!canEditHeader} 
+                        value={auditor1} 
+                        onChange={(e) => handleAuditorChange(0, e.target.value)} 
+                        className={`${getInputClass('issuedBy', canEditHeader)} pl-10 appearance-none`}
+                      >
+                         <option value="">Primary Auditor...</option>
+                         {QA_PERSONNEL.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-4 text-gray-400 pointer-events-none" />
+                   </div>
+                   <div className="relative">
+                      <User size={16} className="absolute left-3 top-3.5 text-gray-600"/>
+                      <select 
+                        disabled={!canEditHeader} 
+                        value={auditor2} 
+                        onChange={(e) => handleAuditorChange(1, e.target.value)} 
+                        className={`${getInputClass('issuedBy', canEditHeader)} pl-10 appearance-none`}
+                      >
+                         <option value="">Co-Auditor (Optional)...</option>
+                         {QA_PERSONNEL.map(p => <option key={p} value={p}>{p}</option>)}
+                      </select>
+                      <ChevronDown size={14} className="absolute right-3 top-4 text-gray-400 pointer-events-none" />
+                   </div>
                 </div>
                 {isNew && errors.issuedBy && <p className="text-red-500 text-xs mt-1 font-medium">{errors.issuedBy}</p>}
              </div>

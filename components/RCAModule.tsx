@@ -1,10 +1,4 @@
 
-
-
-
-
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import { RCAData, RCAChain, ParetoItem } from '../types';
 import { Plus, Trash2, ArrowRight, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch } from 'lucide-react';
@@ -79,7 +73,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3-flash-preview',
           contents: prompt,
         });
         
@@ -92,7 +86,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
         setIsAiGenerating(false);
       }
 
-    }, 2500); // Increased delay for 5 whys typing
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, [chains, problemStatement, isReadOnly]);
@@ -104,22 +98,17 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     
     setChains(prev => {
       const newChains = [...prev];
-      
-      // Filter out empty placeholder if it exists and hasn't been touched
       const cleanedPrev = newChains.filter(c => c.whys.some(w => w.trim()));
-      
       const addedChains = generatedChains.map(chainWhys => ({
          id: crypto.randomUUID(),
          whys: chainWhys
       }));
-
       return [...cleanedPrev, ...addedChains];
     });
     
     setIsAiFillingFactors(false);
   };
 
-  // Add a new empty chain
   const addChain = () => {
     setChains(prev => [...prev, {
       id: crypto.randomUUID(),
@@ -127,7 +116,6 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     }]);
   };
 
-  // Add next 'Why' level to a specific chain
   const addNextWhy = (chainId: string) => {
     setChains(prev => prev.map(c => {
       if (c.id === chainId) {
@@ -137,7 +125,6 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     }));
   };
 
-  // Update 'Why' value
   const updateWhy = (chainId: string, index: number, value: string) => {
     setChains(prev => prev.map(c => {
       if (c.id === chainId) {
@@ -149,33 +136,28 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     }));
   };
 
-  // Remove a 'Why' level or the whole chain if it's the last one
   const removeWhy = (chainId: string, index: number) => {
     setChains(prev => prev.map(c => {
       if (c.id === chainId) {
         const newWhys = c.whys.filter((_, i) => i !== index);
-        if (newWhys.length === 0) return { ...c, whys: [''] }; // Keep at least one empty
+        if (newWhys.length === 0) return { ...c, whys: [''] };
         return { ...c, whys: newWhys };
       }
       return c;
     }));
   };
 
-  // Remove entire chain
   const removeChain = (chainId: string) => {
     setChains(prev => prev.filter(c => c.id !== chainId));
   };
   
-  // Handle Tab Switch
   const handleTabChange = async (tab: 'analysis' | 'fishbone' | 'pareto') => {
     setActiveTab(tab);
   };
 
-  // Sync Pareto Data
   useEffect(() => {
     if (activeTab === 'pareto') {
       const potentialRootCauses: {id: string, cause: string}[] = [];
-      
       chains.forEach(chain => {
         const validWhys = chain.whys.filter(w => w.trim());
         if (validWhys.length > 0) {
@@ -211,7 +193,6 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     });
   };
 
-  // --- Pareto Calculations ---
   const sortedPareto = [...paretoItems].sort((a, b) => b.frequency - a.frequency);
   const totalFrequency = sortedPareto.reduce((sum, item) => sum + item.frequency, 0);
   
@@ -352,7 +333,6 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                                  </React.Fragment>
                               ))}
 
-                              {/* Add Next Why Button */}
                               {!isReadOnly && (
                                  <div className="flex items-center pt-6">
                                     <button 
@@ -371,7 +351,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                   </div>
                </div>
 
-               {/* Final Hypothesis (AI Generated) */}
+               {/* Final Hypothesis */}
                <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-6 rounded-xl shadow-sm border border-purple-100 shrink-0 relative overflow-hidden mt-4">
                   <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                      <Sparkles size={100} className="text-purple-900"/>
@@ -403,14 +383,14 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
             </div>
           )}
 
-          {/* TAB 2: FISHBONE (Dynamic Layout based on Chains) */}
+          {/* TAB 2: FISHBONE (Dynamic Layout) */}
           {activeTab === 'fishbone' && (
               <div className="flex flex-col h-full">
                   <h3 className="font-bold text-gray-700 uppercase tracking-wide text-sm mb-4 flex justify-between items-center">
                       <span>Fishbone Diagram (Ishikawa)</span>
                   </h3>
                   
-                  <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden relative">
+                  <div className="flex-1 bg-white rounded-xl shadow-inner border border-gray-200 overflow-hidden relative p-4">
                       {chains.length === 0 ? (
                           <div className="flex items-center justify-center h-full text-gray-400 italic">
                               No data to visualize. Add chains in the "5 Whys Analysis" tab first.
@@ -508,39 +488,32 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   );
 };
 
-// Helper Icon
-const PlusCircleIcon = ({size}: {size: number}) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-);
-
 // --- Fishbone SVG ---
 const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains, problem }) => {
-    const width = 1000;
-    const height = 500;
+    const width = 1200;
+    const height = 600;
     const padding = 50;
     
     // Spine
     const spineY = height / 2;
     const spineStartX = padding;
-    const spineEndX = width - 250; // Room for head
+    const spineEndX = width - 350; // Increased to give more room for the head
 
     // Rib Geometry
-    const ribLength = 180;
-    const ribAngle = 60 * (Math.PI / 180); // 60 degrees in radians
+    const ribLength = 240; // Slightly longer ribs
+    const ribAngle = 60 * (Math.PI / 180); 
     const topRibDy = -Math.sin(ribAngle) * ribLength;
     const topRibDx = -Math.cos(ribAngle) * ribLength;
     const bottomRibDy = Math.sin(ribAngle) * ribLength;
     
-    // Distribute chains top and bottom (each chain is a bone)
-    // Filter out chains with no content to avoid empty sticks
     const validChains = chains.filter(c => c.whys.some(w => w.trim()));
     const topChains = validChains.filter((_, i) => i % 2 === 0);
     const bottomChains = validChains.filter((_, i) => i % 2 !== 0);
 
-    const spacing = (spineEndX - spineStartX) / (Math.ceil(validChains.length / 2) + 1);
+    const spacing = (spineEndX - spineStartX) / (Math.max(Math.ceil(validChains.length / 2), 1) + 1);
 
     return (
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full preserve-3d">
             <defs>
                 <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
                     <polygon points="0 0, 10 3.5, 0 7" fill="#1e293b" />
@@ -555,12 +528,16 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
                 markerEnd="url(#arrowhead)" 
             />
 
-            {/* Head (Problem) */}
-            <g transform={`translate(${spineEndX + 20}, ${spineY})`}>
-                <rect x="0" y="-40" width="200" height="80" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" />
-                <text x="100" y="0" textAnchor="middle" dominantBaseline="middle" fontSize="14" fontWeight="bold" fill="#7f1d1d" className="truncate">
-                    {problem.length > 50 ? problem.substring(0, 50) + '...' : problem}
-                </text>
+            {/* Head (Problem) - Using foreignObject to wrap text fully */}
+            <g transform={`translate(${spineEndX + 10}, ${spineY - 75})`}>
+                <rect x="0" y="0" width="300" height="150" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" />
+                <foreignObject x="10" y="10" width="280" height="130">
+                    <div className="h-full w-full flex items-center justify-center text-center overflow-auto custom-scrollbar p-1">
+                        <span className="text-red-900 font-bold text-sm md:text-base leading-tight">
+                            {problem}
+                        </span>
+                    </div>
+                </foreignObject>
             </g>
 
             {/* Top Ribs */}
@@ -568,23 +545,24 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
                 const rootX = spineEndX - ((i + 1) * spacing);
                 const tipX = rootX + topRibDx;
                 const tipY = spineY + topRibDy;
-                
-                // Whys are the items on the bone
                 const items = chain.whys.filter(w => w.trim());
 
                 return (
                     <g key={`top-${i}`}>
-                        {/* Rib Line */}
                         <line x1={tipX} y1={tipY} x2={rootX} y2={spineY} stroke="#334155" strokeWidth="2" />
-                        
-                        {/* Items */}
                         {items.map((item, j) => {
-                             const itemY = tipY + ((j + 1) * 25);
-                             const itemXStart = tipX + ((j + 1) * (topRibDx / -4)); // Slant offset
+                             const itemY = tipY + ((j + 1) * 45); // Increased vertical step
+                             const itemXStart = tipX + ((j + 1) * (topRibDx / -4));
                              return (
                                  <g key={`t-item-${j}`}>
-                                     <line x1={itemXStart} y1={itemY} x2={itemXStart + 100} y2={itemY} stroke="#64748b" strokeWidth="1" />
-                                     <text x={itemXStart + 105} y={itemY + 4} fontSize="10" fill="#334155">{item}</text>
+                                     <line x1={itemXStart} y1={itemY} x2={itemXStart + 220} y2={itemY} stroke="#94a3b8" strokeWidth="1" />
+                                     <foreignObject x={itemXStart + 5} y={itemY - 30} width="210" height="60">
+                                         <div className="h-full w-full flex items-center text-[10px] md:text-[11px] font-medium text-slate-700 leading-tight p-0.5">
+                                             <span className="w-full text-left break-words overflow-auto no-scrollbar">
+                                                {item}
+                                             </span>
+                                         </div>
+                                     </foreignObject>
                                  </g>
                              );
                         })}
@@ -594,32 +572,33 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
 
             {/* Bottom Ribs */}
             {bottomChains.map((chain, i) => {
-                const rootX = spineEndX - ((i + 1) * spacing) - (spacing/2); // Offset slightly
+                const rootX = spineEndX - ((i + 1) * spacing) - (spacing/2); 
                 const tipX = rootX + topRibDx;
                 const tipY = spineY + bottomRibDy;
-                
                 const items = chain.whys.filter(w => w.trim());
 
                 return (
                     <g key={`bot-${i}`}>
-                        {/* Rib Line */}
                         <line x1={tipX} y1={tipY} x2={rootX} y2={spineY} stroke="#334155" strokeWidth="2" />
-                        
-                        {/* Items */}
                         {items.map((item, j) => {
-                             const itemY = tipY - ((j + 1) * 25);
+                             const itemY = tipY - ((j + 1) * 45); // Increased vertical step
                              const itemXStart = tipX + ((j + 1) * (topRibDx / -4));
                              return (
                                  <g key={`b-item-${j}`}>
-                                     <line x1={itemXStart} y1={itemY} x2={itemXStart + 100} y2={itemY} stroke="#64748b" strokeWidth="1" />
-                                     <text x={itemXStart + 105} y={itemY + 4} fontSize="10" fill="#334155">{item}</text>
+                                     <line x1={itemXStart} y1={itemY} x2={itemXStart + 220} y2={itemY} stroke="#94a3b8" strokeWidth="1" />
+                                     <foreignObject x={itemXStart + 5} y={itemY - 30} width="210" height="60">
+                                         <div className="h-full w-full flex items-center text-[10px] md:text-[11px] font-medium text-slate-700 leading-tight p-0.5">
+                                             <span className="w-full text-left break-words overflow-auto no-scrollbar">
+                                                {item}
+                                             </span>
+                                         </div>
+                                     </foreignObject>
                                  </g>
                              );
                         })}
                     </g>
                 );
             })}
-
         </svg>
     );
 };
@@ -632,22 +611,17 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
   const graphWidth = width - margin.left - margin.right;
   const graphHeight = height - margin.top - margin.bottom;
 
-  // Scales
-  const maxFreq = data[0].frequency;
-  const yLeftMax = Math.ceil(maxFreq * 1.1); // 10% headroom
-  const xBandWidth = graphWidth / data.length;
+  const maxFreq = data.length > 0 ? Math.max(...data.map(d => d.frequency)) : 10;
+  const yLeftMax = Math.ceil(maxFreq * 1.1); 
+  const xBandWidth = data.length > 0 ? graphWidth / data.length : graphWidth;
   const barWidth = Math.min(xBandWidth * 0.6, 60);
 
-  // Helper to scale Y (Left)
   const scaleYLeft = (val: number) => graphHeight - (val / yLeftMax) * graphHeight;
-  
-  // Helper to scale Y (Right - %)
   const scaleYRight = (val: number) => graphHeight - (val / 100) * graphHeight;
 
-  // Line Path Generator
   let pathD = `M `;
   data.forEach((d, i) => {
-    const x = (i * xBandWidth) + (xBandWidth / 2); // center of band
+    const x = (i * xBandWidth) + (xBandWidth / 2); 
     const y = scaleYRight(d.cumulative);
     pathD += `${i === 0 ? '' : 'L '}${x} ${y} `;
   });
@@ -656,12 +630,10 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
     <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto max-w-4xl border border-gray-200 bg-white">
       <g transform={`translate(${margin.left}, ${margin.top})`}>
         
-        {/* Axes Lines */}
-        <line x1={0} y1={graphHeight} x2={graphWidth} y2={graphHeight} stroke="#000" strokeWidth="1" /> {/* X Axis */}
-        <line x1={0} y1={0} x2={0} y2={graphHeight} stroke="#000" strokeWidth="1" /> {/* Y Left */}
-        <line x1={graphWidth} y1={0} x2={graphWidth} y2={graphHeight} stroke="#000" strokeWidth="1" /> {/* Y Right */}
+        <line x1={0} y1={graphHeight} x2={graphWidth} y2={graphHeight} stroke="#000" strokeWidth="1" /> 
+        <line x1={0} y1={0} x2={0} y2={graphHeight} stroke="#000" strokeWidth="1" /> 
+        <line x1={graphWidth} y1={0} x2={graphWidth} y2={graphHeight} stroke="#000" strokeWidth="1" /> 
 
-        {/* Y Axis Left Labels (Frequency) */}
         {[0, 0.25, 0.5, 0.75, 1].map(tick => {
           const val = Math.round(yLeftMax * tick);
           const y = scaleYLeft(val);
@@ -669,12 +641,11 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
             <g key={`y-left-${tick}`}>
               <line x1={-5} y1={y} x2={0} y2={y} stroke="#000" />
               <text x={-10} y={y + 4} textAnchor="end" fontSize="10" fill="#333">{val}</text>
-              <line x1={0} y1={y} x2={graphWidth} y2={y} stroke="#e5e7eb" strokeDasharray="4 4" /> {/* Grid */}
+              <line x1={0} y1={y} x2={graphWidth} y2={y} stroke="#e5e7eb" strokeDasharray="4 4" /> 
             </g>
           );
         })}
 
-        {/* Y Axis Right Labels (Percentage) */}
         {[0, 25, 50, 75, 100].map(val => {
           const y = scaleYRight(val);
           return (
@@ -685,51 +656,33 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
           );
         })}
 
-        {/* Bars */}
         {data.map((d, i) => {
           const x = (i * xBandWidth) + (xBandWidth - barWidth) / 2;
           const h = graphHeight - scaleYLeft(d.frequency);
           const y = scaleYLeft(d.frequency);
-          
           return (
             <g key={`bar-${i}`}>
-              <rect 
-                x={x} 
-                y={y} 
-                width={barWidth} 
-                height={h} 
-                fill="#3b82f6" 
-                className="hover:opacity-80 transition-opacity"
-              />
-              <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1d4ed8">
-                {d.frequency}
-              </text>
+              <rect x={x} y={y} width={barWidth} height={h} fill="#3b82f6" className="hover:opacity-80 transition-opacity" />
+              <text x={x + barWidth / 2} y={y - 5} textAnchor="middle" fontSize="10" fontWeight="bold" fill="#1d4ed8">{d.frequency}</text>
             </g>
           );
         })}
 
-        {/* Line Chart (Cumulative %) */}
-        <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="2" />
+        {data.length > 0 && <path d={pathD} fill="none" stroke="#ef4444" strokeWidth="2" />}
         
-        {/* Line Points */}
         {data.map((d, i) => {
           const x = (i * xBandWidth) + (xBandWidth / 2);
           const y = scaleYRight(d.cumulative);
-          return (
-            <circle key={`pt-${i}`} cx={x} cy={y} r={4} fill="#ef4444" stroke="#fff" strokeWidth="2" />
-          );
+          return <circle key={`pt-${i}`} cx={x} cy={y} r={4} fill="#ef4444" stroke="#fff" strokeWidth="2" />;
         })}
 
-        {/* X Axis Labels */}
         {data.map((d, i) => {
            const x = (i * xBandWidth) + (xBandWidth / 2);
            return (
              <text 
                key={`label-${i}`} 
-               x={0} 
-               y={0} 
-               fontSize="10" 
-               textAnchor="end" 
+               x={0} y={0} 
+               fontSize="10" textAnchor="end" 
                transform={`translate(${x}, ${graphHeight + 15}) rotate(-45)`}
                fill="#333"
              >
@@ -738,22 +691,16 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
            );
         })}
 
-        {/* Legends */}
         <g transform={`translate(${graphWidth / 2 - 60}, -20)`}>
            <rect x="0" y="0" width="10" height="10" fill="#3b82f6" />
            <text x="15" y="9" fontSize="10">Frequency</text>
-           
            <line x1="80" y1="5" x2="100" y2="5" stroke="#ef4444" strokeWidth="2" />
-           <circle cx="90" cy="5" r="2" fill="#ef4444" />
            <text x="105" y="9" fontSize="10">Cumulative %</text>
-           
            <line x1="160" y1="5" x2="250" y2="5" stroke="#000" strokeWidth="1" strokeDasharray="4 4" />
            <text x="255" y="9" fontSize="10">80% Threshold</text>
         </g>
         
-        {/* 80% Line */}
         <line x1={0} y1={scaleYRight(80)} x2={graphWidth} y2={scaleYRight(80)} stroke="#000" strokeWidth="1" strokeDasharray="4 4" />
-
       </g>
     </svg>
   );
