@@ -473,7 +473,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                    <option value="All">All Records</option>
                    <option value="CLOSED">CLOSED</option>
                    <optgroup label="Specific Status">
-                      {Object.values(CARStatus).filter(s => s !== 'CLOSED').map(s => (
+                      {Object.values(CARStatus).map(s => (
                           <option key={s} value={s}>{getStatusLabel(s)}</option>
                       ))}
                    </optgroup>
@@ -603,11 +603,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
                    else daysColor = "text-green-600 font-bold";
                 }
 
-                // Edit/Delete Permissions: Only QA, and only their own CARs OR Main QA can see all
-                // AND ONLY IF STATUS IS OPEN (added per request)
+                // Edit/Delete Permissions: 
+                // 1. Main QA can edit/delete everything regardless of status
+                // 2. Specific auditors can edit/delete only if status is OPEN
                 const auditors = car.issuedBy ? car.issuedBy.split(' & ') : [];
                 const isAuditor = auditors.includes(userName || '');
-                const showEditDelete = userRole === Role.QA && !isMonitorMode && (isMainQA || isAuditor) && car.status === CARStatus.OPEN;
+                const showEditDelete = userRole === Role.QA && !isMonitorMode && (isMainQA || (isAuditor && car.status === CARStatus.OPEN));
 
                 return (
                   <tr 
@@ -708,10 +709,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ userRole, currentDepartmen
           {userRole === Role.QA && viewMode === 'active' && !isMonitorMode && (
               <>
                   <div className="flex items-center gap-1.5">
-                      <Pencil size={14} /> <span>Edit (Open Only)</span>
+                      <Pencil size={14} /> <span>Edit {isMainQA ? '(All)' : '(Open Only)'}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                      <Trash2 size={14} /> <span>Delete (Open Only)</span>
+                      <Trash2 size={14} /> <span>Delete {isMainQA ? '(All)' : '(Open Only)'}</span>
                   </div>
               </>
           )}
