@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { CAR, Role, CARStatus, RemedialAction, CorrectiveAction, DEPARTMENTS, RCAData, ISO_CLAUSES, AuditTrailEntry, AuditAction, RootCause, QA_PERSONNEL } from '../types';
@@ -178,7 +177,7 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
 
   const selectCorrectiveSuggestion = (suggestion: string) => {
     setNewCorrective(prev => ({ ...prev, action: suggestion }));
-    setCorrectiveSuggestions(prev => prev.filter(s => s !== suggestion));
+    setCorrectiveSuggestions(prev => prev.filter(s => s !== newCorrective.action));
   };
 
   if (loading || !car) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-green-700" size={48} /></div>;
@@ -708,7 +707,15 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
       )}
 
       {showRCA && (
-        <RCAModule initialData={car.rcaData} problemStatement={car.description.statement} onSave={handleRCASave} onCancel={() => setShowRCA(false)} isReadOnly={!canRespond} />
+        <RCAModule 
+          initialData={car.rcaData} 
+          problemStatement={car.description.statement} 
+          refNo={car.refNo}
+          carNo={car.carNo}
+          onSave={handleRCASave} 
+          onCancel={() => setShowRCA(false)} 
+          isReadOnly={!canRespond} 
+        />
       )}
 
       {/* Header Actions */}

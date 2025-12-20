@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RCAData, RCAChain, ParetoItem } from '../types';
-import { Plus, Trash2, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch, Bot, ArrowDown, ChevronDown, Split, BrainCircuit } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch, Bot, ArrowDown, ChevronDown, Split, BrainCircuit, Printer } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { generateRCAChains } from '../services/aiService';
 
 interface RCAModuleProps {
   initialData: RCAData;
   problemStatement: string;
+  refNo?: string;
+  carNo?: string;
   onSave: (data: RCAData) => void;
   onCancel: () => void;
   isReadOnly: boolean;
 }
 
-export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatement, onSave, onCancel, isReadOnly }) => {
+export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatement, refNo, carNo, onSave, onCancel, isReadOnly }) => {
   const [chains, setChains] = useState<RCAChain[]>(initialData.chains || []);
   const [paretoItems, setParetoItems] = useState<ParetoItem[]>(initialData.paretoItems || []);
   const [rootCauseHypothesis, setRootCauseHypothesis] = useState(initialData.rootCauseHypothesis || '');
@@ -197,6 +199,10 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     });
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   const sortedPareto = [...paretoItems].sort((a, b) => b.frequency - a.frequency);
   const totalFrequency = sortedPareto.reduce((sum, item) => sum + item.frequency, 0);
   
@@ -220,11 +226,29 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white w-full max-w-7xl h-[90vh] rounded-xl flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:static">
+      <div className="bg-white w-full max-w-7xl h-[90vh] rounded-xl flex flex-col shadow-2xl overflow-hidden print:h-auto print:shadow-none print:max-w-none print:overflow-visible">
         
+        {/* CSS for Print View */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body * { visibility: hidden; }
+            .print-rca-container, .print-rca-container * { visibility: visible; }
+            .print-rca-container { 
+              position: absolute; 
+              left: 0; 
+              top: 0; 
+              width: 100%;
+              padding: 20px;
+              background-color: white;
+            }
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+          }
+        ` }} />
+
         {/* Header */}
-        <div className="bg-green-800 text-white p-4 flex justify-between items-center shrink-0">
+        <div className="bg-green-800 text-white p-4 flex justify-between items-center shrink-0 no-print">
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Sparkles size={20} className="text-yellow-300"/> 
@@ -244,10 +268,13 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
               </button>
             )}
             {!isReadOnly && (
-               <button onClick={saveRCA} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition-colors">
+               <button onClick={saveRCA} className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition-colors mr-2">
                   <Save size={18}/> Save Analysis
                </button>
             )}
+            <button onClick={handlePrint} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold inline-flex items-center gap-2 shadow-sm transition-colors mr-2">
+                <Printer size={18}/> Print
+            </button>
             <button onClick={onCancel} className="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg font-bold transition-colors">
               Close
             </button>
@@ -255,7 +282,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-gray-50 border-b border-gray-200 shrink-0">
+        <div className="flex bg-gray-50 border-b border-gray-200 shrink-0 no-print">
           <button onClick={() => handleTabChange('analysis')} className={`px-6 py-3 font-semibold flex items-center gap-2 transition-colors ${activeTab === 'analysis' ? 'bg-white text-green-800 border-t-4 border-green-600 shadow-sm' : 'text-gray-500 hover:bg-gray-100'}`}>
             <LayoutGrid size={18}/> 5 Whys Analysis
           </button>
@@ -267,8 +294,8 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-[#f8fafc]">
+        {/* Content (Screen) */}
+        <div className="flex-1 overflow-y-auto p-6 bg-[#f8fafc] no-print">
           
           {/* TAB 1: 5 WHYS ANALYSIS (Hierarchical Flowchart) */}
           {activeTab === 'analysis' && (
@@ -562,6 +589,96 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
           )}
 
         </div>
+
+        {/* PRINTABLE COMPONENT (Only visible on print) */}
+        <div className="hidden print-rca-container p-10 bg-white">
+           <header className="text-center border-b-2 border-gray-800 pb-4 mb-6">
+              <h1 className="text-3xl font-bold uppercase tracking-tight">Root Cause Analysis</h1>
+              <div className="mt-2 flex justify-center gap-10 text-sm font-bold">
+                 <span>REF NO: {refNo || 'N/A'}</span>
+                 <span>CAR NO: {carNo || 'N/A'}</span>
+              </div>
+           </header>
+
+           <section className="mb-8">
+              <h2 className="text-lg font-bold text-red-800 uppercase mb-2 border-l-4 border-red-600 pl-2">Problem Statement</h2>
+              <p className="bg-gray-50 p-4 border rounded text-gray-800 italic">"{problemStatement}"</p>
+           </section>
+
+           <section className="mb-10">
+              <h2 className="text-lg font-bold text-blue-800 uppercase mb-4 border-l-4 border-blue-600 pl-2">5 Whys Analysis</h2>
+              <div className="space-y-6">
+                 {chains.map((chain, cidx) => (
+                    <div key={cidx} className="bg-white border rounded p-4">
+                       <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Chain {cidx + 1} {chain.parentId ? '(Branch)' : ''}</h3>
+                       <div className="space-y-2">
+                          {chain.whys.filter(w => w.trim()).map((why, widx) => (
+                             <div key={widx} className="flex items-start gap-4">
+                                <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-bold">{widx + 1}</div>
+                                <div className="pt-1">
+                                   <p className="text-sm font-medium text-gray-800">{why}</p>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    </div>
+                 ))}
+              </div>
+           </section>
+
+           <section className="mb-10">
+              <h2 className="text-lg font-bold text-purple-800 uppercase mb-4 border-l-4 border-purple-600 pl-2">RCA Hypothesis Synthesis</h2>
+              <div className="bg-purple-50 p-5 border border-purple-100 rounded text-purple-900 font-bold text-base leading-relaxed">
+                 {rootCauseHypothesis || 'No hypothesis synthesized.'}
+              </div>
+           </section>
+
+           <div className="page-break"></div>
+
+           <section className="mb-10">
+              <h2 className="text-lg font-bold text-green-800 uppercase mb-4 border-l-4 border-green-600 pl-2">Fishbone Diagram (Ishikawa)</h2>
+              <div className="border p-4 bg-white flex justify-center h-[500px]">
+                 <FishboneSVG chains={chains} problem={problemStatement} />
+              </div>
+           </section>
+
+           <div className="page-break"></div>
+
+           <section className="mb-10">
+              <h2 className="text-lg font-bold text-orange-800 uppercase mb-4 border-l-4 border-orange-600 pl-2">Pareto Chart (Statistical Prioritization)</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                 <div className="border p-4 bg-white">
+                    <ParetoSVGChart data={paretoData} totalFreq={totalFrequency} />
+                 </div>
+                 <div>
+                    <table className="w-full text-sm border-collapse border">
+                       <thead className="bg-gray-100 font-bold">
+                          <tr>
+                             <th className="p-2 border">Root Cause</th>
+                             <th className="p-2 border text-right">Freq</th>
+                             <th className="p-2 border text-right">Cum%</th>
+                          </tr>
+                       </thead>
+                       <tbody>
+                          {paretoData.map((row, idx) => (
+                             <tr key={idx}>
+                                <td className="p-2 border text-xs">{row.cause}</td>
+                                <td className="p-2 border text-right font-mono">{row.frequency}</td>
+                                <td className="p-2 border text-right font-mono">{row.cumulative.toFixed(1)}%</td>
+                             </tr>
+                          ))}
+                       </tbody>
+                    </table>
+                 </div>
+              </div>
+           </section>
+
+           <footer className="mt-20 pt-10 border-t flex justify-between text-xs text-gray-400 font-bold uppercase tracking-widest">
+              <span>OSPITAL NG MAKATI - QUALITY MANAGEMENT SYSTEM</span>
+              <span>RCA REPORT GENERATED: {new Date().toLocaleDateString()}</span>
+           </footer>
+        </div>
+
       </div>
     </div>
   );
@@ -585,10 +702,10 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
     const bottomChains = validChains.filter((_, i) => i % 2 !== 0);
     const spacing = (spineEndX - spineStartX) / (Math.max(Math.ceil(validChains.length / 2), 1) + 1);
     return (
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full preserve-3d">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full preserve-3d" style={{ maxWidth: '100%' }}>
             <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1e293b" /></marker></defs>
             <line x1={spineStartX} y1={spineY} x2={spineEndX} y2={spineY} stroke="#1e293b" strokeWidth="4" markerEnd="url(#arrowhead)" />
-            <g transform={`translate(${spineEndX + 10}, ${spineY - 75})`}><rect x="0" y="0" width="300" height="150" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" /><foreignObject x="10" y="10" width="280" height="130"><div className="h-full w-full flex items-center justify-center text-center overflow-auto custom-scrollbar p-1"><span className="text-red-900 font-bold text-sm md:text-base leading-tight">{problem}</span></div></foreignObject></g>
+            <g transform={`translate(${spineEndX + 10}, ${spineY - 75})`}><rect width="300" height="150" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" /><foreignObject x="10" y="10" width="280" height="130"><div className="h-full w-full flex items-center justify-center text-center overflow-auto custom-scrollbar p-1"><span className="text-red-900 font-bold text-sm md:text-base leading-tight">{problem}</span></div></foreignObject></g>
             {topChains.map((chain, i) => {
                 const rootX = spineEndX - ((i + 1) * spacing);
                 const tipX = rootX + topRibDx;
@@ -643,7 +760,7 @@ const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulati
   let pathD = `M `;
   data.forEach((d, i) => { const x = (i * xBandWidth) + (xBandWidth / 2); const y = scaleYRight(d.cumulative); pathD += `${i === 0 ? '' : 'L '}${x} ${y} `; });
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white border">
+    <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto bg-white border" style={{ maxWidth: '100%' }}>
       <g transform={`translate(${margin.left}, ${margin.top})`}>
         <line x1={0} y1={graphHeight} x2={graphWidth} y2={graphHeight} stroke="#000" strokeWidth="1" /><line x1={0} y1={0} x2={0} y2={graphHeight} stroke="#000" strokeWidth="1" />
         {data.map((d, i) => {
