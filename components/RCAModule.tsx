@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { RCAData, RCAChain, ParetoItem } from '../types';
-import { Plus, Trash2, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch, Bot, ArrowDown, ChevronDown, Split } from 'lucide-react';
+import { Plus, Trash2, TrendingUp, Save, X, LayoutGrid, Sparkles, AlertCircle, Loader2, GitBranch, Bot, ArrowDown, ChevronDown, Split, BrainCircuit } from 'lucide-react';
 import { GoogleGenAI } from "@google/genai";
 import { generateRCAChains } from '../services/aiService';
 
@@ -32,55 +32,50 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
     }
   }, [isReadOnly, chains.length]);
 
-  // --- AI Auto-Generation Logic (Hypothesis) ---
-  useEffect(() => {
-    if (isReadOnly) return;
+  // --- Manual AI Hypothesis Synthesis ---
+  const handleSynthesizeHypothesis = async () => {
+    const hasFactors = chains.some(c => c.whys.some(w => w.trim().length > 0));
 
-    const timer = setTimeout(async () => {
-      const hasFactors = chains.some(c => c.whys.some(w => w.trim().length > 0));
+    if (!hasFactors) {
+      alert("Please enter some causal factors in your 5 Whys analysis before synthesizing a hypothesis.");
+      return;
+    }
 
-      if (!hasFactors) {
-        if (rootCauseHypothesis !== '') setRootCauseHypothesis('');
-        return;
+    setIsAiGenerating(true);
+
+    try {
+      let analysisText = "";
+      chains.forEach(c => {
+         const validFactors = c.whys.filter(w => w.trim());
+         if (validFactors.length > 0) {
+           analysisText += `- Chain: ${validFactors.join(' -> caused -> ')}\n`;
+         }
+      });
+
+      const prompt = `
+        You are a Quality Assurance expert specializing in Root Cause Analysis (ISO 9001:2015).
+        Problem Statement: "${problemStatement}"
+        5 Whys Analysis Chains: ${analysisText}
+        Based on the causal chains provided above, synthesize a single, professional, and cohesive "Root Cause Hypothesis" sentence.
+        Identify the deepest underlying cause from the chains. Do not add preamble.
+      `;
+
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-flash-preview',
+        contents: prompt,
+      });
+      
+      if (response.text) {
+        setRootCauseHypothesis(response.text.trim());
       }
-
-      setIsAiGenerating(true);
-
-      try {
-        let analysisText = "";
-        chains.forEach(c => {
-           const validFactors = c.whys.filter(w => w.trim());
-           if (validFactors.length > 0) {
-             analysisText += `- Chain: ${validFactors.join(' -> caused -> ')}\n`;
-           }
-        });
-
-        const prompt = `
-          You are a Quality Assurance expert specializing in Root Cause Analysis (ISO 9001:2015).
-          Problem Statement: "${problemStatement}"
-          5 Whys Analysis Chains: ${analysisText}
-          Based on the causal chains provided above, synthesize a single, professional, and cohesive "Root Cause Hypothesis" sentence.
-          Identify the deepest underlying cause from the chains. Do not add preamble.
-        `;
-
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
-          contents: prompt,
-        });
-        
-        if (response.text) {
-          setRootCauseHypothesis(response.text.trim());
-        }
-      } catch (error) {
-        console.error("AI Generation failed", error);
-      } finally {
-        setIsAiGenerating(false);
-      }
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [chains, problemStatement, isReadOnly, rootCauseHypothesis]);
+    } catch (error) {
+      console.error("AI Generation failed", error);
+      alert("Failed to synthesize hypothesis. Please try again.");
+    } finally {
+      setIsAiGenerating(false);
+    }
+  };
 
   const handleAutoFillFactors = async () => {
     setIsAiFillingFactors(true);
@@ -443,26 +438,34 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
                          <h3 className="font-bold text-purple-900 text-base flex items-center gap-2">
                             <Sparkles size={18} className="text-purple-600"/> RCA Hypothesis Synthesis
                          </h3>
-                         {isAiGenerating && (
-                            <span className="text-[10px] font-bold text-purple-600 bg-white/60 px-2 py-1 rounded-full flex items-center gap-1 animate-pulse border border-purple-100">
-                               <Loader2 size={12} className="animate-spin"/> AI Reasoning...
-                            </span>
-                         )}
+                         <div className="flex items-center gap-2">
+                            {!isReadOnly && (
+                              <button 
+                                onClick={handleSynthesizeHypothesis}
+                                disabled={isAiGenerating}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded-full font-bold text-xs flex items-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50"
+                              >
+                                {isAiGenerating ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />}
+                                {isAiGenerating ? 'Synthesizing...' : 'Synthesize with AI'}
+                              </button>
+                            )}
+                         </div>
                      </div>
                      
                      <textarea 
-                       readOnly
-                       className="w-full p-4 border border-purple-200 bg-white/80 backdrop-blur-sm rounded-lg text-gray-900 leading-relaxed font-bold text-sm resize-none focus:outline-none shadow-inner"
+                       readOnly={isReadOnly}
+                       className={`w-full p-4 border border-purple-200 bg-white/80 backdrop-blur-sm rounded-lg text-gray-900 leading-relaxed font-bold text-sm resize-none focus:outline-none shadow-inner ${isReadOnly ? 'cursor-not-allowed' : ''}`}
                        rows={2}
-                       placeholder={isReadOnly ? "No synthesis provided." : "Start analyzing above to see the AI synthesize your root cause hypothesis..."}
+                       placeholder={isReadOnly ? "No synthesis provided." : "Conduct analysis above then click 'Synthesize with AI' to generate a cohesive hypothesis, or type your own here..."}
                        value={rootCauseHypothesis}
+                       onChange={(e) => setRootCauseHypothesis(e.target.value)}
                      />
                   </div>
                </div>
             </div>
           )}
 
-          {/* TAB 2: FISHBONE (Unchanged as requested) */}
+          {/* TAB 2: FISHBONE */}
           {activeTab === 'fishbone' && (
               <div className="flex flex-col h-full">
                   <h3 className="font-bold text-gray-700 uppercase tracking-wide text-sm mb-4 flex justify-between items-center">
@@ -481,7 +484,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
               </div>
           )}
 
-          {/* TAB 3: PARETO (Unchanged as requested) */}
+          {/* TAB 3: PARETO */}
           {activeTab === 'pareto' && (
             <div className="space-y-8 pb-10">
               
@@ -564,7 +567,7 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   );
 };
 
-// --- Fishbone SVG (Unchanged per request) ---
+// --- Fishbone SVG ---
 const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains, problem }) => {
     const width = 1200;
     const height = 600;
@@ -624,7 +627,7 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
     );
 };
 
-// --- Pareto Chart (Unchanged per request) ---
+// --- Pareto Chart ---
 const ParetoSVGChart: React.FC<{ data: (ParetoItem & { percent: number, cumulative: number })[], totalFreq: number }> = ({ data, totalFreq }) => {
   const width = 800;
   const height = 400;
