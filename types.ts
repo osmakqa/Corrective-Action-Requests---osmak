@@ -477,6 +477,8 @@ export interface RootCause {
 
 export interface RCAChain {
   id: string;
+  parentId?: string; // Links to parent chain for branching
+  parentLevel?: number; // Index in parent chain where this fork occurs
   category?: string; // e.g. 'PEOPLE', 'METHODS' - kept for compatibility but not manually used
   whys: string[]; // Reused to store Factors
 }

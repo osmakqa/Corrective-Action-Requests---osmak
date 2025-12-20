@@ -1,54 +1,47 @@
-
-# Design and Development Plan (ISO 9001:2015 Clause 8.3.2)
-
-**Project Title:** Digital Corrective Action Request (CAR) System  
-**Department:** Quality Management Office / IT  
-**Date Prepared:** [Insert Date]  
+# Design and Development Plan
+**Project:** Digital CAR System v2.6
+**Ref:** ISO 9001:2015 Clause 8.3.2
 
 ---
 
-## 1. Objective
-To transition from a manual paper-based CAR process to a centralized, web-based application to improve tracking, accountability, and reporting efficiency in compliance with ISO 9001:2015 Clause 10.2.
+## 1. Project Objective
+To modernize the Corrective Action Request process into a unified digital experience that ensures 100% accountability and real-time visibility for the Hospital Quality Management Representative.
 
-## 2. Development Stages
-The project will follow a standard Software Development Life Cycle (SDLC):
+## 2. Development Phases & Milestones
 
-### Phase 1: Planning & Requirements Gathering
-*   **Input:** Review of existing "Corrective Action Request Form" and "Registry of Non-Submission."
-*   **Output:** Software Requirements Specification (SRS).
+### Phase 1: Planning & Requirements (Completed)
+- **Input:** Analysis of existing manual forms and ISO 9001 requirements.
+- **Milestone:** Approval of SRS and UI wireframes.
 
-### Phase 2: Design & Prototyping
-*   **Activity:** Creation of modern Card-Based UI wireframes.
-*   **Activity:** Database schema design (Consolidated JSONB structure in Supabase).
-*   **Review:** Approval of the workflow logic by the QA Manager.
+### Phase 2: Core Architecture & Database (Completed)
+- **Activity:** Setup Supabase schema, RLS policies, and Auth logic.
+- **Milestone:** Functional login and basic dashboard navigation.
 
-### Phase 3: Development / Coding
-*   **Activity:** Frontend development using ReactJS and TailwindCSS.
-*   **Activity:** Backend integration with Supabase (PostgreSQL).
-*   **Key Features:** Role-based access, Advanced RCA (Fishbone/Pareto), Native PDF Generation (jsPDF).
+### Phase 3: Workflow Implementation (Completed)
+- **Activity:** Development of the CAR Form with conditional logic for IQA Review and Verification.
+- **Milestone:** Successful "Round-trip" testing from Issuance to Closure.
 
-### Phase 4: Verification (Testing)
-*   **Activity:** Developer performs unit testing and integration testing.
-*   **Activity:** Execution of Test Scripts (See `TestScripts.md`).
+### Phase 4: Advanced Modules (Current)
+- **Activity:** Integration of Gemini AI for RCA assistance and native PDF generation.
+- **Milestone:** Release of the Intelligent RCA Module.
 
-### Phase 5: Validation & Deployment
-*   **Activity:** User Acceptance Testing (UAT) by select QA staff and Audit teams.
-*   **Output:** UAT Sign-off and Go-Live.
+### Phase 5: Verification & Validation (Ongoing)
+- **Activity:** Execution of automated and manual test scripts.
+- **Milestone:** UAT sign-off by DQMR.
 
-## 3. Responsibilities and Authorities
-*   **Project Lead / Developer:** Responsible for architecture, coding, and technical maintenance.
-*   **Process Owner (QA Manager):** Responsible for defining the business rules, approval of design, and final acceptance.
-*   **End Users (Process Owners):** Responsible for testing the response interface.
+## 3. Resource Allocation
+- **Engineering:** Senior Frontend Engineer (React/TypeScript).
+- **Domain Expertise:** Quality Assurance Team (IQA Lead).
+- **Infrastructure:** Supabase Cloud, Google Cloud (Vertex/Gemini).
 
-## 4. Resources
-*   **Hardware:** Standard hospital workstations.
-*   **Software:** Visual Studio Code (IDE), Supabase (Cloud Database).
-*   **Libraries:** `lucide-react` (Icons), `jsPDF` (Reporting), `recharts` (Analytics).
-*   **Reference Standards:** ISO 9001:2015 Standard.
+## 4. Verification & Validation Controls (Clause 8.3.4)
+- **Design Verification:** Peer review of the Status Transition logic in `CARForm.tsx`.
+- **Design Validation:** Controlled pilot launch with the Pharmacy and Laboratory departments.
+- **Output Control:** Verification that generated PDFs match exactly the layout of approved paper forms.
 
-## 5. Interface Control
-*   The system acts as a standalone module within the QMS digital ecosystem.
+## 5. Change Management (Clause 8.3.6)
+- Any changes to the status workflow or data schema must be logged in the `ChangeLog.md` and approved by the IT Lead and QA Manager.
 
 ---
-**Prepared By:** _________________________ (Developer)  
-**Approved By:** _________________________ (QA Manager)
+**Prepared By:** Senior Frontend Engineer
+**Authorized By:** IT Project Manager

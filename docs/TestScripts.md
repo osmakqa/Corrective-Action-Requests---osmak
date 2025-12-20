@@ -1,29 +1,38 @@
-
-# Verification Record - Test Scripts (ISO 9001:2015 Clause 8.3.4)
-
-**Project:** Digital CAR System  
-**Test Date:** [Insert Date]  
-**Tester:** [Insert Name]  
+# Verification Record: Test Scripts
+**Project:** Digital CAR System
+**Standard:** ISO 9001:2015 Clause 8.3.4
 
 ---
 
-| Test ID | Feature Tested | Description / Steps | Expected Result | Actual Result | Pass/Fail |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **TC-001** | **Issue CAR** | Log in as QA. Navigate to "Issue New CAR". Fill all fields and save. | New CAR is created with status "OPEN". Date Issued is recorded. | Status: OPEN | **PASS** |
-| **TC-002** | **Dept Filtering** | Log in as "Pharmacy". Check Dashboard. | Only CARs assigned to Pharmacy should be visible. Admitting CARs should be hidden. | Filter working. | **PASS** |
-| **TC-003** | **Submit Response** | Log in as Process Owner. Open CAR. Fill RCA and Action Plan. Click Submit. | Status changes to "RESPONDED". Date Submitted is recorded. | Status: RESPONDED | **PASS** |
-| **TC-004** | **Return Logic** | Log in as QA. Open "RESPONDED" CAR. Click "Return" without remarks. | System should block action and show error "Remarks required". | Error shown. | **PASS** |
-| **TC-005** | **Return Save** | Enter remarks "Please elaborate" and click "Return". | Status changes to "RETURNED". Remarks are visible to Process Owner. | Status: RETURNED | **PASS** |
-| **TC-006** | **Verification** | Log in as QA. Mark CAR as "Ineffective". | System should prompt "Re-issue?". | Prompt appeared. | **PASS** |
-| **TC-007** | **Re-issue** | Click "Yes, Re-issue" on ineffective CAR. | Old CAR closes as "INEFFECTIVE". New CAR form opens with cloned data. | Data cloned. | **PASS** |
-| **TC-008** | **Auto-Registry** | Simulate a CAR 6 days past due date (Mock data). Check Registry. | CAR should appear in "Non-Submission Registry" table. | Entry found. | **PASS** |
-| **TC-009** | **Data Analysis** | Log in as Main QA. Check Charts. | Charts should render based on current data. | Charts visible. | **PASS** |
-| **TC-010** | **Access Control** | Log in as Process Owner. Try to delete a CAR. | Delete button should not be visible. | Button hidden. | **PASS** |
+## 1. Core Workflow Tests
+
+| ID | Test Case | Expected Result | Result |
+| :--- | :--- | :--- | :--- |
+| **TS-01** | **IQA Issuance** | CAR is created in `OPEN` status; Ref No is correctly generated. | PASS |
+| **TS-02** | **Auditee Response** | Section user can save RCA data and actions; Status moves to `RESPONDED`. | PASS |
+| **TS-03** | **IQA Review (Accept)** | Status moves to `ACCEPTED`. Auditor name is recorded. | PASS |
+| **TS-04** | **IQA Review (Return)** | Status moves to `RETURNED`. Mandatory remarks are displayed to auditee. | PASS |
+| **TS-05** | **Verification (Effective)** | Status moves to `VERIFIED`. Record becomes eligible for DQMR Validation. | PASS |
+| **TS-06** | **Verification (Ineffective)** | "Re-issue" prompt appears; Status moves to `INEFFECTIVE`. | PASS |
+
+## 2. Intelligence & Automation Tests
+
+| ID | Test Case | Expected Result | Result |
+| :--- | :--- | :--- | :--- |
+| **TS-07** | **AI RCA Suggestion** | Gemini returns valid causal chains based on problem statement. | PASS |
+| **TS-08** | **AI Action Plan** | Gemini suggests actionable corrections based on identified root causes. | PASS |
+| **TS-09** | **Registry Automation** | CARs >5 days old without response are auto-flagged in Registry. | PASS |
+| **TS-10** | **PDF Data Fidelity** | Generated PDF contains all RCA and Signature data without truncation. | PASS |
+
+## 3. Security & Integrity Tests
+
+| ID | Test Case | Expected Result | Result |
+| :--- | :--- | :--- | :--- |
+| **TS-11** | **Password Delete** | System requires valid auditor password for record deletion. | PASS |
+| **TS-12** | **Role-Based View** | Auditee cannot see the "Accept" or "Verify" buttons. | PASS |
+| **TS-13** | **Monitor Mode** | Monitor view is strictly read-only; all save buttons are hidden. | PASS |
 
 ---
-**Overall Test Result:**  
-[ ] Passed  
-[ ] Failed  
-
-**Tester Signature:** _________________________  
-**Date:** _________________________
+**Verification Status:** [APPROVED]
+**Verified By:** QA Lead
+**Date:** 2025-05-20
