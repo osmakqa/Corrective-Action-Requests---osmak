@@ -226,12 +226,16 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:static">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 print:p-0 print:bg-white print:static print:block overflow-hidden print:overflow-visible">
       <div className="bg-white w-full max-w-7xl h-[90vh] rounded-xl flex flex-col shadow-2xl overflow-hidden print:h-auto print:shadow-none print:max-w-none print:overflow-visible">
         
         {/* CSS for Print View */}
         <style dangerouslySetInnerHTML={{ __html: `
           @media print {
+            @page {
+              size: A4 portrait;
+              margin: 15mm;
+            }
             body * { visibility: hidden; }
             .print-rca-container, .print-rca-container * { visibility: visible; }
             .print-rca-container { 
@@ -239,11 +243,17 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
               left: 0; 
               top: 0; 
               width: 100%;
-              padding: 20px;
+              padding: 0;
               background-color: white;
+              display: block !important;
             }
             .no-print { display: none !important; }
             .page-break { page-break-before: always; }
+            .print-section { margin-bottom: 20px; }
+            .print-header { border-bottom: 2px solid #1a202c; padding-bottom: 10px; margin-bottom: 20px; text-align: center; }
+            .print-row { display: flex; flex-wrap: wrap; margin: -5px; }
+            .print-col { padding: 5px; flex: 1; }
+            svg { max-width: 100% !important; height: auto !important; }
           }
         ` }} />
 
@@ -590,92 +600,115 @@ export const RCAModule: React.FC<RCAModuleProps> = ({ initialData, problemStatem
 
         </div>
 
-        {/* PRINTABLE COMPONENT (Only visible on print) */}
+        {/* PRINTABLE COMPONENT (Only visible on window.print()) */}
         <div className="hidden print-rca-container p-10 bg-white">
-           <header className="text-center border-b-2 border-gray-800 pb-4 mb-6">
-              <h1 className="text-3xl font-bold uppercase tracking-tight">Root Cause Analysis</h1>
-              <div className="mt-2 flex justify-center gap-10 text-sm font-bold">
-                 <span>REF NO: {refNo || 'N/A'}</span>
-                 <span>CAR NO: {carNo || 'N/A'}</span>
+           <header className="print-header">
+              <h1 className="text-2xl font-bold uppercase tracking-tight text-gray-900">Root Cause Analysis Report</h1>
+              <div className="mt-4 flex justify-center gap-10 text-xs font-bold text-gray-700 border-t pt-4">
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-gray-400 font-normal">REF NO.</span>
+                   <span>{refNo || 'N/A'}</span>
+                 </div>
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-gray-400 font-normal">CAR NO.</span>
+                   <span>{carNo || 'N/A'}</span>
+                 </div>
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] text-gray-400 font-normal">PRINT DATE</span>
+                   <span>{new Date().toLocaleDateString()}</span>
+                 </div>
               </div>
            </header>
 
-           <section className="mb-8">
-              <h2 className="text-lg font-bold text-red-800 uppercase mb-2 border-l-4 border-red-600 pl-2">Problem Statement</h2>
-              <p className="bg-gray-50 p-4 border rounded text-gray-800 italic">"{problemStatement}"</p>
+           <section className="print-section">
+              <h2 className="text-sm font-bold text-red-800 uppercase mb-2 border-l-4 border-red-600 pl-2">1. Problem Statement</h2>
+              <div className="bg-gray-50 p-4 border border-gray-200 rounded text-gray-800 text-sm italic font-medium leading-relaxed">
+                "{problemStatement}"
+              </div>
            </section>
 
-           <section className="mb-10">
-              <h2 className="text-lg font-bold text-blue-800 uppercase mb-4 border-l-4 border-blue-600 pl-2">5 Whys Analysis</h2>
-              <div className="space-y-6">
+           <section className="print-section">
+              <h2 className="text-sm font-bold text-blue-800 uppercase mb-4 border-l-4 border-blue-600 pl-2">2. 5 Whys Factor Analysis</h2>
+              <div className="grid grid-cols-1 gap-4">
                  {chains.map((chain, cidx) => (
-                    <div key={cidx} className="bg-white border rounded p-4">
-                       <h3 className="text-xs font-bold text-gray-400 uppercase mb-3">Chain {cidx + 1} {chain.parentId ? '(Branch)' : ''}</h3>
-                       <div className="space-y-2">
+                    <div key={cidx} className="border border-gray-200 rounded p-4 bg-white">
+                       <h3 className="text-[10px] font-bold text-gray-400 uppercase mb-3">
+                          {chain.parentId ? `Branched Factor Chain (from C${chains.findIndex(c => c.id === chain.parentId) + 1})` : `Primary Causal Chain ${cidx + 1}`}
+                       </h3>
+                       <div className="space-y-3">
                           {chain.whys.filter(w => w.trim()).map((why, widx) => (
                              <div key={widx} className="flex items-start gap-4">
-                                <div className="shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-bold">{widx + 1}</div>
-                                <div className="pt-1">
-                                   <p className="text-sm font-medium text-gray-800">{why}</p>
+                                <div className="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-[10px] font-extrabold border border-blue-200">{widx + 1}</div>
+                                <div className="pt-0.5">
+                                   <p className="text-sm font-medium text-gray-900 leading-tight">{why}</p>
                                 </div>
                              </div>
                           ))}
                        </div>
                     </div>
                  ))}
+                 {chains.length === 0 && <p className="text-xs text-gray-400 italic">No analysis performed.</p>}
               </div>
            </section>
 
-           <section className="mb-10">
-              <h2 className="text-lg font-bold text-purple-800 uppercase mb-4 border-l-4 border-purple-600 pl-2">RCA Hypothesis Synthesis</h2>
-              <div className="bg-purple-50 p-5 border border-purple-100 rounded text-purple-900 font-bold text-base leading-relaxed">
-                 {rootCauseHypothesis || 'No hypothesis synthesized.'}
+           <section className="print-section">
+              <h2 className="text-sm font-bold text-purple-800 uppercase mb-4 border-l-4 border-purple-600 pl-2">3. RCA Hypothesis Synthesis</h2>
+              <div className="bg-purple-50 p-4 border border-purple-200 rounded text-purple-900 font-bold text-sm leading-relaxed shadow-sm">
+                 {rootCauseHypothesis || 'No AI-synthesized hypothesis available.'}
               </div>
            </section>
 
            <div className="page-break"></div>
 
-           <section className="mb-10">
-              <h2 className="text-lg font-bold text-green-800 uppercase mb-4 border-l-4 border-green-600 pl-2">Fishbone Diagram (Ishikawa)</h2>
-              <div className="border p-4 bg-white flex justify-center h-[500px]">
+           <section className="print-section">
+              <h2 className="text-sm font-bold text-green-800 uppercase mb-6 border-l-4 border-green-600 pl-2">4. Fishbone Diagram (Visual Representation)</h2>
+              <div className="border border-gray-200 p-4 bg-white rounded-lg flex items-center justify-center h-[420px] overflow-hidden">
                  <FishboneSVG chains={chains} problem={problemStatement} />
               </div>
+              <p className="text-[10px] text-gray-400 text-center mt-2 italic">Ishikawa Diagram depicting hierarchical causal factors contributing to the problem statement.</p>
            </section>
 
-           <div className="page-break"></div>
-
-           <section className="mb-10">
-              <h2 className="text-lg font-bold text-orange-800 uppercase mb-4 border-l-4 border-orange-600 pl-2">Pareto Chart (Statistical Prioritization)</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                 <div className="border p-4 bg-white">
+           <section className="print-section mt-10">
+              <h2 className="text-sm font-bold text-orange-800 uppercase mb-6 border-l-4 border-orange-600 pl-2">5. Pareto Analysis (Statistical Prioritization)</h2>
+              <div className="grid grid-cols-12 gap-6 items-start">
+                 <div className="col-span-7 border border-gray-200 p-4 bg-white rounded-lg">
                     <ParetoSVGChart data={paretoData} totalFreq={totalFrequency} />
                  </div>
-                 <div>
-                    <table className="w-full text-sm border-collapse border">
-                       <thead className="bg-gray-100 font-bold">
+                 <div className="col-span-5">
+                    <table className="w-full text-xs border-collapse border border-gray-200">
+                       <thead className="bg-gray-100 font-bold text-gray-700">
                           <tr>
-                             <th className="p-2 border">Root Cause</th>
-                             <th className="p-2 border text-right">Freq</th>
-                             <th className="p-2 border text-right">Cum%</th>
+                             <th className="p-2 border border-gray-200 text-left">Root Cause Factor</th>
+                             <th className="p-2 border border-gray-200 text-center">Freq</th>
+                             <th className="p-2 border border-gray-200 text-center">Cum%</th>
                           </tr>
                        </thead>
                        <tbody>
                           {paretoData.map((row, idx) => (
-                             <tr key={idx}>
-                                <td className="p-2 border text-xs">{row.cause}</td>
-                                <td className="p-2 border text-right font-mono">{row.frequency}</td>
-                                <td className="p-2 border text-right font-mono">{row.cumulative.toFixed(1)}%</td>
+                             <tr key={idx} className={row.cumulative <= 80 ? 'bg-blue-50/30' : ''}>
+                                <td className="p-2 border border-gray-200 text-gray-800 leading-tight">{row.cause}</td>
+                                <td className="p-2 border border-gray-200 text-center font-mono font-bold text-gray-900">{row.frequency}</td>
+                                <td className="p-2 border border-gray-200 text-center font-mono font-bold text-blue-700">{row.cumulative.toFixed(1)}%</td>
                              </tr>
                           ))}
+                          {paretoData.length === 0 && (
+                            <tr><td colSpan={3} className="p-4 text-center text-gray-400 italic">No statistical data provided.</td></tr>
+                          )}
                        </tbody>
                     </table>
+                    <p className="text-[9px] text-gray-500 mt-2 leading-tight">Note: Factors in blue highlight represent the vital few (80% of problems) according to Pareto's Principle.</p>
                  </div>
               </div>
            </section>
 
-           <footer className="mt-20 pt-10 border-t flex justify-between text-xs text-gray-400 font-bold uppercase tracking-widest">
-              <span>OSPITAL NG MAKATI - QUALITY MANAGEMENT SYSTEM</span>
-              <span>RCA REPORT GENERATED: {new Date().toLocaleDateString()}</span>
+           <footer className="mt-24 pt-10 border-t border-gray-300 flex justify-between items-end text-[9px] text-gray-400 font-bold uppercase tracking-widest">
+              <div className="flex flex-col gap-1">
+                <span>OSPITAL NG MAKATI - QUALITY MANAGEMENT SYSTEM</span>
+                <span>DIGITAL CAR SYSTEM V2.6 - CL: 10.2</span>
+              </div>
+              <div className="text-right">
+                <span>FORM REF: OsMak-IQA-RCA-REPORT</span>
+              </div>
            </footer>
         </div>
 
@@ -705,7 +738,7 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full preserve-3d" style={{ maxWidth: '100%' }}>
             <defs><marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#1e293b" /></marker></defs>
             <line x1={spineStartX} y1={spineY} x2={spineEndX} y2={spineY} stroke="#1e293b" strokeWidth="4" markerEnd="url(#arrowhead)" />
-            <g transform={`translate(${spineEndX + 10}, ${spineY - 75})`}><rect width="300" height="150" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" /><foreignObject x="10" y="10" width="280" height="130"><div className="h-full w-full flex items-center justify-center text-center overflow-auto custom-scrollbar p-1"><span className="text-red-900 font-bold text-sm md:text-base leading-tight">{problem}</span></div></foreignObject></g>
+            <g transform={`translate(${spineEndX + 10}, ${spineY - 75})`}><rect width="300" height="150" fill="#fee2e2" stroke="#ef4444" strokeWidth="2" rx="8" /><foreignObject x="10" y="10" width="280" height="130"><div className="h-full w-full flex items-center justify-center text-center overflow-hidden p-1"><span className="text-red-900 font-bold text-sm md:text-base leading-tight">{problem}</span></div></foreignObject></g>
             {topChains.map((chain, i) => {
                 const rootX = spineEndX - ((i + 1) * spacing);
                 const tipX = rootX + topRibDx;
@@ -717,7 +750,7 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
                              const itemY = tipY + ((j + 1) * 45);
                              const itemXStart = tipX + ((j + 1) * (topRibDx / -4));
                              return (
-                                 <g key={`t-item-${j}`}><line x1={itemXStart} y1={itemY} x2={itemXStart + 220} y2={itemY} stroke="#94a3b8" strokeWidth="1" /><foreignObject x={itemXStart + 5} y={itemY - 30} width="210" height="60"><div className="h-full w-full flex items-center text-[10px] md:text-[11px] font-medium text-slate-700 leading-tight p-0.5"><span className="w-full text-left break-words overflow-auto no-scrollbar">{item}</span></div></foreignObject></g>
+                                 <g key={`t-item-${j}`}><line x1={itemXStart} y1={itemY} x2={itemXStart + 220} y2={itemY} stroke="#94a3b8" strokeWidth="1" /><foreignObject x={itemXStart + 5} y={itemY - 30} width="210" height="60"><div className="h-full w-full flex items-center text-[10px] md:text-[11px] font-medium text-slate-700 leading-tight p-0.5"><span className="w-full text-left break-words overflow-hidden no-scrollbar">{item}</span></div></foreignObject></g>
                              );
                         })}
                     </g>
@@ -734,7 +767,7 @@ const FishboneSVG: React.FC<{ chains: RCAChain[], problem: string }> = ({ chains
                              const itemY = tipY - ((j + 1) * 45);
                              const itemXStart = tipX + ((j + 1) * (topRibDx / -4));
                              return (
-                                 <g key={`b-item-${j}`}><line x1={itemXStart} y1={itemY} x2={itemXStart + 220} y2={itemY} stroke="#94a3b8" strokeWidth="1" /><foreignObject x={itemXStart + 5} y={itemY - 30} width="210" height="60"><div className="h-full w-full flex items-center text-[10px] md:text-[11px] font-medium text-slate-700 leading-tight p-0.5"><span className="w-full text-left break-words overflow-auto no-scrollbar">{item}</span></div></foreignObject></g>
+                                 <g key={`b-item-${j}`}><line x1={itemXStart} y1={itemY} x2={itemXStart + 220} y2={itemY} stroke="#94a3b8" strokeWidth="1" /><foreignObject x={itemXStart + 5} y={itemY - 30} width="210" height="60"><div className="h-full w-full flex items-center text-[10px] md:text-[11px] font-medium text-slate-700 leading-tight p-0.5"><span className="w-full text-left break-words overflow-hidden no-scrollbar">{item}</span></div></foreignObject></g>
                              );
                         })}
                     </g>
