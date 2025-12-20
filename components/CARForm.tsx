@@ -53,7 +53,6 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
 
   const [newRemedial, setNewRemedial] = useState('');
   const [newCorrective, setNewCorrective] = useState<Partial<CorrectiveAction>>({});
-  const [assignType, setAssignType] = useState<'person' | 'section'>('person');
   
   // AI Suggestions State
   const [remedialSuggestions, setRemedialSuggestions] = useState<string[]>([]);
@@ -873,7 +872,31 @@ export const CARForm: React.FC<CARFormProps> = ({ userRole, userName }) => {
                           {car.correctiveActions.map(c => (<tr key={c.id} className="bg-white"><td className="p-3">{c.action}</td><td className="p-3">{c.personResponsible}</td><td className="p-3 font-mono text-xs">{c.expectedDate}</td>{canRespond && (<td className="p-3 text-center"><button onClick={() => setCar(prev => prev ? ({...prev, correctiveActions: prev.correctiveActions.filter(x => x.id !== c.id)}) : null)} className="text-red-400"><Trash2 size={16}/></button></td>)}</tr>))}
                        </tbody>
                     </table>
-                    {canRespond && (<div className="bg-gray-50 p-3 border-t border-gray-200"><div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center"><div className="md:col-span-6"><input className="w-full p-2 text-sm border rounded" placeholder="Enter action..." value={newCorrective.action || ''} onChange={e => setNewCorrective({...newCorrective, action: e.target.value})} /></div><div className="md:col-span-3"><input className="w-full p-2 text-sm border rounded" placeholder="Responsible" value={newCorrective.personResponsible || ''} onChange={e => setNewCorrective({...newCorrective, personResponsible: e.target.value})} /></div><div className="md:col-span-2"><input type="date" className="w-full p-2 text-sm border rounded" value={newCorrective.expectedDate || ''} onChange={e => setNewCorrective({...newCorrective, expectedDate: e.target.value})} /></div><div className="md:col-span-1"><button onClick={addCorrective} className="w-full bg-green-600 text-white p-2 rounded flex justify-center items-center"><Plus size={18}/></button></div></div></div>)}
+                    {canRespond && (
+                      <div className="bg-gray-50 p-3 border-t border-gray-200">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                          <div className="md:col-span-6">
+                            <input className="w-full p-2 text-sm border rounded" placeholder="Enter action..." value={newCorrective.action || ''} onChange={e => setNewCorrective({...newCorrective, action: e.target.value})} />
+                          </div>
+                          <div className="md:col-span-3">
+                            <input className="w-full p-2 text-sm border rounded" placeholder="Responsible" value={newCorrective.personResponsible || ''} onChange={e => setNewCorrective({...newCorrective, personResponsible: e.target.value})} />
+                          </div>
+                          <div className="md:col-span-2">
+                            <input 
+                              type="date" 
+                              className="w-full p-2 text-sm border rounded" 
+                              value={newCorrective.expectedDate || ''} 
+                              onChange={e => setNewCorrective({...newCorrective, expectedDate: e.target.value})} 
+                            />
+                          </div>
+                          <div className="md:col-span-1">
+                            <button onClick={addCorrective} className="w-full bg-green-600 text-white p-2 rounded flex justify-center items-center">
+                              <Plus size={18}/>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                  </div>
               </div>
               <div className="grid grid-cols-2 gap-6 mt-8 pt-6 border-t border-gray-100">
