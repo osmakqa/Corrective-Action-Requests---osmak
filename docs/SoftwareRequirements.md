@@ -10,40 +10,36 @@ The Digital CAR System is designed to provide a robust, tamper-proof environment
 ## 2. Functional Requirements
 
 ### 2.1 Role-Based Access Control (RBAC)
-- **QA/IQA:** Create, Edit (until accepted), Review, Verify, and Monitor all CARs.
-- **Section/Auditee:** View assigned CARs, Submit RCA, and Implement Action Plans.
+- **QA/IQA:** Create, Edit, Review, Verify, and Monitor all CARs.
+- **Section/Auditee:** View assigned CARs, Submit RCA, and Implement Action Plans. Supports three sub-categories: General Sections, Nursing Units, and Clinical Departments.
 - **DQMR:** Validate verified/ineffective CARs and finalize closure.
 - **Security:** Password-protected deletion for QA users to maintain data integrity.
 
 ### 2.2 Corrective Action Workflow (Clause 10.2)
-- **Status Engine:** Hard-coded transitions to prevent process skipping.
-- **Automated Registry:** Daily background check (simulated in frontend) for overdue responses, auto-logging entries into the `registry` table.
+- **Status Engine:** Managed transitions (OPEN -> RESPONDED -> ACCEPTED -> FOR VERIFICATION -> VERIFIED -> CLOSED).
+- **Automated Registry:** Daily monitoring for overdue responses (>5 working days), with automatic entry into the `registry` table.
 - **Re-issue Logic:** One-click cloning of ineffective CARs to ensure persistent tracking of unresolved issues.
 
 ### 2.3 Intelligent RCA Module
 - **Multi-Methodology Support:** 5 Whys (Causal chains), Fishbone (Visual), and Pareto (Statistical prioritization).
-- **AI Synthesis:** Integration with Gemini API to suggest remedial/corrective actions and synthesize root cause hypotheses.
-- **Visualizations:** Real-time SVG rendering of Fishbone diagrams and Pareto charts.
+- **AI Synthesis:** Integration with **Gemini 3 Flash** to suggest remedial/corrective actions and synthesize root cause hypotheses.
+- **Data-Driven Pareto:** Automatic calculation of cumulative percentages and prioritization based on user-entered frequencies.
 
 ### 2.4 Document Control (Clause 7.5)
-- **PDF Generation:** Native `jsPDF` implementation to generate official hospital forms (`OsMak-IQA-FO-CAR [Rev.2]`) with dynamic content wrapping.
-- **Audit Trail:** immutable log of all "state-changing" events including who, what, and when.
+- **PDF Generation:** Native `jsPDF` implementation to generate official hospital forms (`OsMak-IQA-FO-CAR [Rev.2]`) with support for dynamic content, headers, and digital signatures.
+- **Audit Trail:** Immutable log of all "state-changing" events including timestamps, user roles, and detailed remarks.
 
 ## 3. Technical Requirements
 
 ### 3.1 Tech Stack
-- **Frontend:** React 19 (Strict Mode), Tailwind CSS for responsive design.
-- **Backend/Database:** Supabase (PostgreSQL) utilizing JSONB for flexible data structures.
-- **API:** Google GenAI (Gemini) for intelligent analysis.
+- **Frontend:** React 19 (Strict Mode), Tailwind CSS, Lucide Icons.
+- **Backend/Database:** Supabase (PostgreSQL) using JSONB for RCA and Action Plan storage.
+- **AI Integration:** `@google/genai` (Gemini 3 Flash) for intelligent analysis.
+- **PDF Engine:** `jsPDF` with base64 embedded assets for high-fidelity rendering.
 
-### 3.2 Data Design
-- **Denormalization:** To optimize performance and ensure document snapshots, action plans and RCA data are stored as JSONB within the main `cars` record.
-- **Integrity:** Use of UUIDs for all primary and foreign keys.
-
-## 4. Quality & Performance Requirements
-- **Responsibility:** App must be fully responsive for tablet/desktop audit use.
-- **Latency:** AI suggestions should return within 3 seconds.
-- **Offline Resilience:** State management must handle intermittent connectivity during audits (basic level).
+### 3.2 Data Integrity
+- **Validation:** Strict frontend validation for "P-E-R" compliance in NC statements.
+- **Concurrency:** Real-time state updates using Supabase subscriptions (where applicable).
 
 ---
 **Approved By:** Quality Assurance Manager

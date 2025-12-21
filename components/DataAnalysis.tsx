@@ -82,6 +82,12 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
   const closedCount = filteredCars.filter(c => c.status === CARStatus.CLOSED).length;
   const lateCount = filteredCars.filter(c => c.isLate).length;
 
+  // --- Dynamic Year List ---
+  const yearsList = useMemo(() => {
+    const years = Array.from(new Set(cars.map(c => new Date(c.dateIssued).getFullYear().toString())));
+    return years.sort().reverse(); // Show latest year first
+  }, [cars]);
+
   // --- Processed Data with Sorting ---
   const sortedIsoData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -107,21 +113,20 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
 
   const sortedMatrixRows = useMemo(() => {
     const matrix: Record<string, any> = {};
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const activeMatrixCars = (selectedDept === 'All' || isSectionUser) ? filteredCars : filteredCars.filter(c => c.department === selectedDept);
 
     activeMatrixCars.forEach(c => {
       const date = new Date(c.dateIssued);
-      const monthKey = months[date.getMonth()];
+      const yearKey = date.getFullYear().toString();
       const key = c.description.reference || "Unspecified";
       const codeMatch = key.match(/Clause\s+([\d\.]+)/);
       const shortKey = codeMatch ? `Clause ${codeMatch[1]}` : (key.length > 20 ? key.substring(0, 20) + '...' : key);
 
       if (!matrix[shortKey]) {
         matrix[shortKey] = { Clause: shortKey, Total: 0 };
-        months.forEach(m => matrix[shortKey][m] = 0);
+        yearsList.forEach(y => matrix[shortKey][y] = 0);
       }
-      matrix[shortKey][monthKey]++;
+      matrix[shortKey][yearKey]++;
       matrix[shortKey].Total++;
     });
 
@@ -136,7 +141,7 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
       });
     }
     return rows;
-  }, [filteredCars, selectedDept, matrixSortConfig]);
+  }, [filteredCars, selectedDept, matrixSortConfig, yearsList]);
 
   const sourceDistribution = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -145,8 +150,6 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
   }, [filteredCars]);
 
   if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-green-700" size={48} /></div>;
-
-  const monthsList = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
     <div className="space-y-8 pb-10">
@@ -240,7 +243,7 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
       <div className="bg-white p-6 rounded-xl shadow border border-gray-200">
          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide flex items-center gap-2">
-              <Calendar size={16} className="text-orange-600"/> Monthly Trend Analysis Matrix
+              <Calendar size={16} className="text-orange-600"/> Annual Trend Analysis Matrix
             </h3>
             {!isSectionUser && (
               <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} className="text-xs border rounded-lg p-2 bg-gray-50 font-bold focus:ring-2 focus:ring-green-500 outline-none">
@@ -251,15 +254,15 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
          </div>
          
          <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
-            <table className="w-full text-[10px] text-left border-collapse">
+            <table className="w-full text-xs text-left border-collapse">
                <thead className="bg-gray-100 text-gray-600 font-bold uppercase">
                   <tr>
                      <th className="p-3 border-b border-gray-200 sticky left-0 bg-gray-100 z-10 cursor-pointer hover:bg-gray-200" onClick={() => handleSortMatrix('Clause')}>
                         <div className="flex items-center">ISO Clause <SortIndicator active={matrixSortConfig?.key === 'Clause'} direction={matrixSortConfig?.direction || 'asc'} /></div>
                      </th>
-                     {monthsList.map(m => (
-                        <th key={m} className="p-3 border-b border-gray-200 text-center w-12 cursor-pointer hover:bg-gray-200" onClick={() => handleSortMatrix(m)}>
-                           <div className="flex flex-col items-center">{m} <SortIndicator active={matrixSortConfig?.key === m} direction={matrixSortConfig?.direction || 'asc'} /></div>
+                     {yearsList.map(y => (
+                        <th key={y} className="p-3 border-b border-gray-200 text-center cursor-pointer hover:bg-gray-200" onClick={() => handleSortMatrix(y)}>
+                           <div className="flex flex-col items-center">{y} <SortIndicator active={matrixSortConfig?.key === y} direction={matrixSortConfig?.direction || 'asc'} /></div>
                         </th>
                      ))}
                      <th className="p-3 border-b border-gray-200 text-center font-bold bg-gray-200 cursor-pointer hover:bg-gray-300" onClick={() => handleSortMatrix('Total')}>
@@ -271,15 +274,15 @@ export const DataAnalysis: React.FC<DataAnalysisProps> = ({ userRole, userDepart
                   {sortedMatrixRows.map((row, idx) => (
                     <tr key={idx} className="hover:bg-gray-50/50">
                        <td className="p-3 font-bold text-gray-800 sticky left-0 bg-white border-r border-gray-100">{row.Clause}</td>
-                       {monthsList.map(m => (
-                          <td key={m} className={`p-3 text-center border-l border-gray-50 ${row[m] > 0 ? 'bg-orange-50 font-bold text-orange-700' : 'text-gray-300'}`}>
-                             {row[m] > 0 ? row[m] : '0'}
+                       {yearsList.map(y => (
+                          <td key={y} className={`p-3 text-center border-l border-gray-50 ${row[y] > 0 ? 'bg-orange-50 font-bold text-orange-700' : 'text-gray-300'}`}>
+                             {row[y] > 0 ? row[y] : '0'}
                           </td>
                        ))}
                        <td className="p-3 text-center font-extrabold bg-gray-50 text-gray-900 border-l border-gray-200">{row.Total}</td>
                     </tr>
                   ))}
-                  {sortedMatrixRows.length === 0 && <tr><td colSpan={14} className="p-8 text-center text-gray-400 italic">No data found for this selection.</td></tr>}
+                  {sortedMatrixRows.length === 0 && <tr><td colSpan={yearsList.length + 2} className="p-8 text-center text-gray-400 italic">No data found for this selection.</td></tr>}
                </tbody>
             </table>
          </div>

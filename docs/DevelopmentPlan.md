@@ -15,32 +15,30 @@ To modernize the Corrective Action Request process into a unified digital experi
 
 ### Phase 2: Core Architecture & Database (Completed)
 - **Activity:** Setup Supabase schema, RLS policies, and Auth logic.
-- **Milestone:** Functional login and basic dashboard navigation.
+- **Milestone:** Functional login for Sections, IQA, and DQMR.
 
 ### Phase 3: Workflow Implementation (Completed)
 - **Activity:** Development of the CAR Form with conditional logic for IQA Review and Verification.
 - **Milestone:** Successful "Round-trip" testing from Issuance to Closure.
 
-### Phase 4: Advanced Modules (Current)
-- **Activity:** Integration of Gemini AI for RCA assistance and native PDF generation.
-- **Milestone:** Release of the Intelligent RCA Module.
+### Phase 4: Intelligence & Analytics (Completed)
+- **Activity:** Integration of **Gemini 3 Flash** for RCA assistance and native PDF generation.
+- **Activity:** Real-time data visualization and Annual Trend Analysis Matrix.
+- **Milestone:** Release of the Intelligent RCA Module and Data Dashboard.
 
-### Phase 5: Verification & Validation (Ongoing)
-- **Activity:** Execution of automated and manual test scripts.
-- **Milestone:** UAT sign-off by DQMR.
+### Phase 5: Verification & Validation (Current)
+- **Activity:** System-wide testing of "Re-issue" logic and automated Non-Submission Registry.
+- **Milestone:** UAT sign-off by DQMR and IQA Head.
 
 ## 3. Resource Allocation
 - **Engineering:** Senior Frontend Engineer (React/TypeScript).
 - **Domain Expertise:** Quality Assurance Team (IQA Lead).
-- **Infrastructure:** Supabase Cloud, Google Cloud (Vertex/Gemini).
+- **Infrastructure:** Supabase Cloud, Google GenAI (Gemini).
 
 ## 4. Verification & Validation Controls (Clause 8.3.4)
 - **Design Verification:** Peer review of the Status Transition logic in `CARForm.tsx`.
-- **Design Validation:** Controlled pilot launch with the Pharmacy and Laboratory departments.
+- **Design Validation:** Pilot launch across Nursing and Clinical departments to verify multi-category support.
 - **Output Control:** Verification that generated PDFs match exactly the layout of approved paper forms.
-
-## 5. Change Management (Clause 8.3.6)
-- Any changes to the status workflow or data schema must be logged in the `ChangeLog.md` and approved by the IT Lead and QA Manager.
 
 ---
 **Prepared By:** Senior Frontend Engineer

@@ -9,7 +9,7 @@
 | **v2.0** | 2025-01-15 | UI Refresh: Migrated to Card-based dashboard layout. | IT Lead |
 | **v2.3** | 2025-03-10 | Native PDF Engine: Integrated `jsPDF` for reliable offline reporting. | IT Lead |
 | **v2.5** | 2025-04-20 | AI Integration: Added Gemini-powered RCA assistance. | QA Head |
-| **v2.6** | 2025-05-22 | **Documentation & Auditor Workflow Update:** Enhanced User Manual for IQA issuance and updated all technical docs for ISO compliance. | QA Head |
+| **v2.6** | 2025-05-22 | **Documentation & Auditor Workflow Update:** Enhanced User Manual for IQA issuance; Updated technical docs to reflect Multi-Category Login and Pareto Analysis features. | QA Head |
 
 ---
 *All changes verified and validated prior to deployment.*
