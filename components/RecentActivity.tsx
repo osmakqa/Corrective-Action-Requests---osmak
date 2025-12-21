@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { AuditTrailEntry, AuditAction, Role } from '../types';
 import { fetchGlobalAuditTrail, fetchCARs } from '../services/store';
-import { Loader2, PlusCircle, MessageSquare, XCircle, CheckCircle, ShieldCheck, AlertCircle, Archive, Trash2, HelpCircle, Activity, PlayCircle, RotateCcw } from 'lucide-react';
+import { Loader2, PlusCircle, MessageSquare, XCircle, CheckCircle, ShieldCheck, AlertCircle, Archive, Trash2, HelpCircle, Activity, PlayCircle, RotateCcw, Search, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const auditDisplayMap = {
@@ -25,13 +25,15 @@ interface RecentActivityProps {
 export const RecentActivity: React.FC<RecentActivityProps> = ({ userRole, userDepartment }) => {
   const [logs, setLogs] = useState<(AuditTrailEntry & { carRefNo?: string, department?: string })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>({ key: 'createdAt', direction: 'desc' });
 
   useEffect(() => {
     const loadLogs = async () => {
       setLoading(true);
       const activityData = await fetchGlobalAuditTrail();
-      
-      // We need to fetch CARs to link the department for filtering
       const cars = await fetchCARs();
       const carDeptMap: Record<string, string> = {};
       cars.forEach(c => carDeptMap[c.id] = c.department);
@@ -41,7 +43,6 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ userRole, userDe
           department: carDeptMap[log.carId] || 'Unknown'
       }));
 
-      // Filter for Section Users
       if (userRole === Role.SECTION && userDepartment) {
           processedLogs = processedLogs.filter(log => log.department === userDepartment);
       }
@@ -52,60 +53,153 @@ export const RecentActivity: React.FC<RecentActivityProps> = ({ userRole, userDe
     loadLogs();
   }, [userRole, userDepartment]);
 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIndicator = ({ columnKey }: { columnKey: string }) => {
+    if (!sortConfig || sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp size={14} className="ml-1 text-green-600" /> : <ArrowDown size={14} className="ml-1 text-green-600" />;
+  };
+
+  const displayedLogs = useMemo(() => {
+    let filtered = logs.filter(log => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        log.userName.toLowerCase().includes(term) ||
+        log.carRefNo?.toLowerCase().includes(term) ||
+        log.action.toLowerCase().includes(term) ||
+        log.department?.toLowerCase().includes(term)
+      );
+    });
+
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any = (a as any)[sortConfig.key];
+        let bValue: any = (b as any)[sortConfig.key];
+        
+        if (sortConfig.key === 'action') {
+            aValue = auditDisplayMap[a.action as AuditAction]?.text || a.action;
+            bValue = auditDisplayMap[b.action as AuditAction]?.text || b.action;
+        }
+
+        if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
+  }, [logs, searchTerm, sortConfig]);
+
   if (loading) {
     return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-green-700" size={48} /></div>;
   }
 
   return (
     <div className="space-y-6">
-       <div className="flex items-center gap-3 border-b border-gray-200 pb-4">
-          <div className="bg-green-100 p-2 rounded-full text-green-700">
-             <Activity size={24} />
+       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-gray-200 pb-4">
+          <div className="flex items-center gap-3">
+             <div className="bg-green-100 p-2 rounded-full text-green-700">
+                <Activity size={24} />
+             </div>
+             <div>
+               <h2 className="text-2xl font-bold text-gray-800">Recent Activity {userRole === Role.SECTION && `(${userDepartment})`}</h2>
+               <p className="text-sm text-gray-500">History of all actions performed in the system.</p>
+             </div>
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">Recent System Activity {userRole === Role.SECTION && `(${userDepartment})`}</h2>
-            <p className="text-sm text-gray-500">Live feed of all actions performed across the system.</p>
+          <div className="relative w-full md:w-64">
+             <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+             <input 
+               type="text" 
+               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none bg-white text-gray-900"
+               placeholder="Search activity..."
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+             />
           </div>
        </div>
 
-       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col max-h-[600px]">
-          {logs.length === 0 ? (
-             <div className="p-12 text-center text-gray-500">No activity recorded for this view.</div>
-          ) : (
-             <div className="divide-y divide-gray-100 overflow-y-auto custom-scrollbar flex-1">
-                {logs.map((log) => {
-                   const display = auditDisplayMap[log.action] || { text: log.action, icon: HelpCircle, color: 'text-gray-400', bg: 'bg-gray-50' };
-                   const Icon = display.icon;
-                   const dateObj = new Date(log.createdAt);
-                   const formattedDate = dateObj.toLocaleDateString();
-                   const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-                   return (
-                      <div key={log.id} className="p-4 hover:bg-gray-50 transition-colors flex gap-4 items-start">
-                         <div className={`shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${display.bg} ${display.color}`}>
-                            <Icon size={20} />
-                         </div>
-                         <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                               <h3 className="text-sm font-bold text-gray-800">{display.text}</h3>
-                               <span className="text-xs text-gray-400 font-mono">{formattedDate} {formattedTime}</span>
-                            </div>
-                            
-                            <p className="text-sm text-gray-600 mt-1">
-                               <span className="font-semibold text-gray-900">{log.userName}</span> ({log.userRole}) performed this action on CAR <Link to={`/car/${log.carId}?readonly=true`} className="text-blue-600 hover:underline font-bold font-mono">{log.carRefNo || 'Unknown Ref'}</Link>
-                            </p>
-
-                            {log.details?.remarks && (
-                               <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-2 rounded border border-gray-200 italic">
-                                  "{log.details.remarks}"
-                               </div>
-                            )}
-                         </div>
-                      </div>
-                   );
-                })}
-             </div>
-          )}
+       <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden flex flex-col max-h-[700px]">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left border-collapse">
+               <thead className="bg-gray-50 text-gray-600 uppercase text-xs font-bold sticky top-0 z-10 shadow-sm">
+                  <tr>
+                    <th className="p-4 border-b cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('createdAt')}>
+                      <div className="flex items-center">Timestamp <SortIndicator columnKey="createdAt" /></div>
+                    </th>
+                    <th className="p-4 border-b cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('action')}>
+                      <div className="flex items-center">Action <SortIndicator columnKey="action" /></div>
+                    </th>
+                    <th className="p-4 border-b cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('userName')}>
+                      <div className="flex items-center">User <SortIndicator columnKey="userName" /></div>
+                    </th>
+                    <th className="p-4 border-b cursor-pointer hover:bg-gray-100 transition-colors" onClick={() => handleSort('carRefNo')}>
+                      <div className="flex items-center">CAR Ref <SortIndicator columnKey="carRefNo" /></div>
+                    </th>
+                    <th className="p-4 border-b text-right">Link</th>
+                  </tr>
+               </thead>
+               <tbody className="divide-y divide-gray-100">
+                  {displayedLogs.map((log) => {
+                     const display = auditDisplayMap[log.action] || { text: log.action, icon: HelpCircle, color: 'text-gray-400', bg: 'bg-gray-50' };
+                     const Icon = display.icon;
+                     return (
+                        <tr key={log.id} className="hover:bg-gray-50/50 transition-colors">
+                           <td className="p-4 whitespace-nowrap">
+                              <div className="flex flex-col">
+                                 <span className="font-bold text-gray-800">{new Date(log.createdAt).toLocaleDateString()}</span>
+                                 <span className="text-xs text-gray-400 font-mono">{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                           </td>
+                           <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${display.bg} ${display.color}`}>
+                                    <Icon size={14} />
+                                 </div>
+                                 <div>
+                                    <span className="font-bold text-gray-700">{display.text}</span>
+                                    {log.details?.remarks && <p className="text-[10px] text-gray-400 italic truncate max-w-[200px]">"{log.details.remarks}"</p>}
+                                 </div>
+                              </div>
+                           </td>
+                           <td className="p-4">
+                              <div className="flex flex-col">
+                                 <span className="font-semibold text-gray-900">{log.userName}</span>
+                                 <span className="text-[10px] uppercase text-gray-400 font-bold">{log.userRole}</span>
+                              </div>
+                           </td>
+                           <td className="p-4">
+                              <div className="flex flex-col">
+                                 <span className="font-mono font-bold text-blue-700">{log.carRefNo || 'Unknown'}</span>
+                                 <span className="text-[10px] text-gray-400">{log.department}</span>
+                              </div>
+                           </td>
+                           <td className="p-4 text-right">
+                              <Link 
+                                to={`/car/${log.carId}?readonly=true`} 
+                                className="inline-flex items-center justify-center p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white transition-all shadow-sm"
+                                title="View Record"
+                              >
+                                 <ExternalLink size={16} />
+                              </Link>
+                           </td>
+                        </tr>
+                     );
+                  })}
+                  {displayedLogs.length === 0 && (
+                     <tr>
+                        <td colSpan={5} className="p-12 text-center text-gray-500 italic">No activity matching your search.</td>
+                     </tr>
+                  )}
+               </tbody>
+            </table>
+          </div>
        </div>
     </div>
   );

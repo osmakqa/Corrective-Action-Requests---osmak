@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { fetchRegistry } from '../services/store';
 import { RegistryEntry, Role } from '../types';
-import { Download, AlertTriangle, Eye, Loader2 } from 'lucide-react';
+import { Download, AlertTriangle, Eye, Loader2, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useParams } from 'react-router-dom';
 
 interface RegistryProps {
@@ -15,17 +15,18 @@ export const Registry: React.FC<RegistryProps> = ({ userRole, currentDepartment,
   const [loading, setLoading] = useState(true);
   const { department: paramDept } = useParams<{ department: string }>();
 
+  // Sorting State
+  const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       let data = await fetchRegistry();
       
-      // Filter for Section User
       if (userRole === Role.SECTION && currentDepartment) {
         data = data.filter(e => e.section === currentDepartment);
       }
       
-      // Filter for Monitor Mode (QA viewing specific section)
       if (isMonitorMode && paramDept) {
         const decodedDept = decodeURIComponent(paramDept);
         data = data.filter(e => e.section === decodedDept);
@@ -37,21 +38,42 @@ export const Registry: React.FC<RegistryProps> = ({ userRole, currentDepartment,
     loadData();
   }, [userRole, currentDepartment, isMonitorMode, paramDept]);
 
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  const SortIndicator = ({ columnKey }: { columnKey: string }) => {
+    if (!sortConfig || sortConfig.key !== columnKey) return <ArrowUpDown size={14} className="ml-1 opacity-30" />;
+    return sortConfig.direction === 'asc' ? <ArrowUp size={14} className="ml-1 text-red-600" /> : <ArrowDown size={14} className="ml-1 text-red-600" />;
+  };
+
+  const sortedEntries = useMemo(() => {
+    if (!sortConfig) return entries;
+    const sorted = [...entries].sort((a, b) => {
+      let aValue: any = (a as any)[sortConfig.key] || '';
+      let bValue: any = (b as any)[sortConfig.key] || '';
+
+      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+    return sorted;
+  }, [entries, sortConfig]);
+
   const exportToCSV = () => {
-    // Removed Reminder Sent from headers and rows
     const headers = ['Section', 'Required Document', 'Original Due Date', 'Status', 'Date Submitted'];
-    const rows = entries.map(e => [
+    const rows = sortedEntries.map(e => [
       e.section,
       e.requiredDocument,
       e.originalDueDate,
       e.status,
       e.dateSubmitted || ''
     ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," 
-      + headers.join(",") + "\n" 
-      + rows.map(e => e.join(",")).join("\n");
-
+    const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -96,21 +118,29 @@ export const Registry: React.FC<RegistryProps> = ({ userRole, currentDepartment,
         <table className="w-full text-sm text-left">
           <thead className="bg-red-50 text-red-900 uppercase text-xs font-bold">
             <tr>
-              <th className="p-3 border">Section/Dept</th>
-              <th className="p-3 border">Required Doc</th>
-              <th className="p-3 border">Due Date</th>
-              {/* Removed Reminder Sent Column Header */}
-              <th className="p-3 border">Status</th>
-              <th className="p-3 border">Date Submitted</th>
+              <th className="p-3 border cursor-pointer select-none hover:bg-red-100" onClick={() => handleSort('section')}>
+                <div className="flex items-center">Section/Dept <SortIndicator columnKey="section" /></div>
+              </th>
+              <th className="p-3 border cursor-pointer select-none hover:bg-red-100" onClick={() => handleSort('requiredDocument')}>
+                <div className="flex items-center">Required Doc <SortIndicator columnKey="requiredDocument" /></div>
+              </th>
+              <th className="p-3 border cursor-pointer select-none hover:bg-red-100" onClick={() => handleSort('originalDueDate')}>
+                <div className="flex items-center">Due Date <SortIndicator columnKey="originalDueDate" /></div>
+              </th>
+              <th className="p-3 border cursor-pointer select-none hover:bg-red-100" onClick={() => handleSort('status')}>
+                <div className="flex items-center">Status <SortIndicator columnKey="status" /></div>
+              </th>
+              <th className="p-3 border cursor-pointer select-none hover:bg-red-100" onClick={() => handleSort('dateSubmitted')}>
+                <div className="flex items-center">Date Submitted <SortIndicator columnKey="dateSubmitted" /></div>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {entries.map((entry, idx) => (
+            {sortedEntries.map((entry, idx) => (
               <tr key={entry.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-red-50'}>
                 <td className="p-3 border font-medium">{entry.section}</td>
                 <td className="p-3 border">{entry.requiredDocument}</td>
                 <td className="p-3 border">{entry.originalDueDate}</td>
-                {/* Removed Reminder Sent Column Cell */}
                 <td className="p-3 border">
                   <span className={`px-2 py-1 rounded text-xs font-bold ${entry.status === 'Open' ? 'bg-red-100 text-red-700 border border-red-300' : 'bg-green-100 text-green-700 border border-green-300'}`}>
                     {entry.status}
@@ -119,11 +149,13 @@ export const Registry: React.FC<RegistryProps> = ({ userRole, currentDepartment,
                 <td className="p-3 border">{entry.dateSubmitted || '-'}</td>
               </tr>
             ))}
-            {entries.length === 0 && (
+            {sortedEntries.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-gray-500 flex flex-col items-center justify-center">
-                   <AlertTriangle className="text-gray-300 mb-2" size={32}/>
-                   <span>No late submissions recorded.</span>
+                <td colSpan={5} className="p-6 text-center text-gray-500">
+                   <div className="flex flex-col items-center justify-center">
+                    <AlertTriangle className="text-gray-300 mb-2" size={32}/>
+                    <span>No late submissions recorded.</span>
+                   </div>
                 </td>
               </tr>
             )}
